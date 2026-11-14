@@ -114,7 +114,9 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<boolean
     sendJson(res, 200, neuroIndex(join(casepackRoot, 'neuroview')));
     return true;
   }
-  if (url.startsWith('/casepacks/')) {
+  // Keep the standalone NeuroView demo usable without the hub. All other case packs,
+  // including the dental candidates, must fall through to Vite's hub proxy.
+  if (url.startsWith('/casepacks/neuroview/')) {
     const rel = decodeURIComponent(url.slice('/casepacks/'.length));
     if (rel.includes('..') || rel.includes('\\') || !rel.endsWith('.nii.gz')) {
       sendJson(res, 400, { ok: false });

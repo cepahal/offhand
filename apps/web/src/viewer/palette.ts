@@ -7,7 +7,7 @@
 export const PALETTE = {
   cortex: '#c9b2b0',
   whiteMatter: '#f3ead7',
-  ventricles: '#8aa0ad',
+  ventricles: '#858b7d',
   skull: '#e6d3b8',
   skullOpacity: 0.15,
   highlight: '#f5d33b',
@@ -37,6 +37,9 @@ export function roleColor(role: AnatomyRole, fallback: string): string {
   if (role === 'ventricle') return PALETTE.ventricles;
   if (role === 'skull') return PALETTE.skull;
   if (role === 'highlight') return PALETTE.highlight;
+  // ToothFairy2 uses cool blue on a few non-target structures. Keep scan colors inside offhand's
+  // neutral/sage palette while preserving the segmentation identity and opacity.
+  if (fallback.toLowerCase() === '#7fb3d5' || fallback.toLowerCase() === '#9ec9e2') return '#777d78';
   return fallback;
 }
 

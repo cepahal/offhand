@@ -14,6 +14,7 @@ import type { DentalTraining } from './dental-anatomy.js';
 
 export type StageControl = { apply: (cmd: ViewerCommand) => void; peel: (dir: 'out' | 'in') => void; reset: () => void };
 export type SlicePlane = 'axial' | 'coronal' | 'sagittal';
+type StageView = 'surface' | SlicePlane;
 type StageStatus = 'loading' | 'ready' | 'empty' | 'error';
 
 const PLANES: SlicePlane[] = ['axial', 'coronal', 'sagittal'];
@@ -99,7 +100,7 @@ export function DentalStage({
   const placeRef = useRef<(n: DentalTraining['n']) => void>(() => {});
   const indexRef = useRef(index);
   const [status, setStatus] = useState<StageStatus>('loading');
-  const [plane, setPlane] = useState<SlicePlane>('axial');
+  const [view, setView] = useState<StageView>('surface');
   bindRef.current = bind;
   indexRef.current = index;
 
@@ -312,7 +313,7 @@ export function DentalStage({
       const line = lineRef.current;
       const dot = dotRef.current;
       if (!callout || !stack || !line || !dot) return;
-      const stage = el.closest('.dv-stage');
+      const stage = el.closest('.dv-viewports');
       if (!stage || !hasNotesRef.current || !mouth) {
         callout.style.visibility = 'hidden';
         return;
@@ -388,40 +389,43 @@ export function DentalStage({
         : '';
 
   return (
-    <>
-      <div class="dv-jaw" ref={host} data-training={index} data-status={status}>
-        <p class="dv-finding">{TREATMENT_ANCHORS[index].label}</p>
-        {message && <p class="dv-state">{message}</p>}
-        <p class="dv-synth">Reference mouth mesh, CC BY 4.0. Not this chart.</p>
-      </div>
-      <div class="dv-callout" ref={calloutRef} data-notes={notes.length}>
-        <svg class="dv-note-line" aria-hidden="true">
-          <line ref={lineRef} stroke="#f5d33b" stroke-width="1.5" />
-        </svg>
-        <i class="dv-anchor-dot" ref={dotRef} />
-        <div class="dv-note-stack" ref={stackRef}>
-          {notes.map((note) => (
-            <article class="dv-note" key={note.id}>{note.text}</article>
-          ))}
-        </div>
-      </div>
-      <div class="dv-slicebar">
-        {PLANES.map((name) => (
-          <button key={name} type="button" class={plane === name ? 'on' : ''} onClick={() => setPlane(name)}>
-            {name[0]!.toUpperCase() + name.slice(1)}
+    <div class="dv-imaging-shell">
+      <div class="dv-view-tabs" role="tablist" aria-label="Scan views">
+        {([
+          ['axial', 'Axial'],
+          ['coronal', 'Coronal'],
+          ['sagittal', 'Sagittal'],
+        ] as const).map(([name, label]) => (
+          <button key={name} type="button" role="tab" aria-selected={view === name} class={view === name ? 'on' : ''} onClick={() => setView(name)}>
+            {label}
           </button>
         ))}
-        <button class="dv-reset" type="button" onClick={() => controlRef.current?.reset()}>Reset</button>
+        <span class="dv-view-note">Reference mesh · not a diagnostic CBCT</span>
       </div>
-      <div class="dv-slices">
-        {PLANES.map((name) => (
-          <figure class={`dv-plane ${plane === name ? 'on' : ''}`} key={name}>
-            <canvas ref={name === 'axial' ? axialRef : name === 'coronal' ? coronalRef : sagittalRef} />
-            {status !== 'ready' && <p class="dv-state">{message}</p>}
-          </figure>
-        ))}
+      <div class={`dv-viewports focus-${view}`} data-focus={view}>
+        <div class="dv-jaw" ref={host} data-training={index} data-status={status}>
+          <span class="dv-view-label">SURFACE MODEL</span>
+          <p class="dv-finding">{TREATMENT_ANCHORS[index].label}</p>
+          {message && <p class="dv-state">{message}</p>}
+          <p class="dv-synth">Reference mouth mesh, CC BY 4.0 · Not this chart</p>
+        </div>
+        <div class="dv-slices">
+          {PLANES.map((name) => (
+            <figure class={`dv-plane dv-plane-${name} ${view === name ? 'on' : ''}`} key={name}>
+              <figcaption>{name.toUpperCase()} <span>REFERENCE SECTION</span></figcaption>
+              <canvas ref={name === 'axial' ? axialRef : name === 'coronal' ? coronalRef : sagittalRef} />
+              {status !== 'ready' && <p class="dv-state">{message}</p>}
+            </figure>
+          ))}
+        </div>
+        <div class="dv-callout" ref={calloutRef} data-notes={notes.length}>
+          <svg class="dv-note-line" aria-hidden="true"><line ref={lineRef} stroke="#c8a96f" stroke-width="1.5" /></svg>
+          <i class="dv-anchor-dot" ref={dotRef} />
+          <div class="dv-note-stack" ref={stackRef}>
+            {notes.map((note) => <article class="dv-note" key={note.id}>{note.text}</article>)}
+          </div>
+        </div>
       </div>
-      <p class="dv-section-note">Synthetic sections of this mesh. Not a CBCT volume.</p>
-    </>
+    </div>
   );
 }

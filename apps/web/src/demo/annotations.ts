@@ -4,7 +4,8 @@
  */
 import type { DentalTraining } from './dental-anatomy.js';
 
-export type CaseNote = { id: string; text: string };
+export type NoteAnchor = { candidateId: string; plane: 'axial' | 'coronal' | 'sagittal'; voxel: [number, number, number] };
+export type CaseNote = { id: string; text: string; anchor?: NoteAnchor };
 
 export type NoteBook = Record<DentalTraining['n'], CaseNote[]>;
 
@@ -23,11 +24,11 @@ export function emptyNoteBook(): NoteBook {
   return { 1: [], 2: [], 3: [], 4: [], 5: [] };
 }
 
-export function addCaseNote(book: NoteBook, caseN: DentalTraining['n'], text: string): NoteBook {
+export function addCaseNote(book: NoteBook, caseN: DentalTraining['n'], text: string, anchor?: NoteAnchor): NoteBook {
   const body = text.trim();
   if (!body) return book;
   sequence += 1;
-  const note: CaseNote = { id: `note-${caseN}-${sequence}`, text: body };
+  const note: CaseNote = { id: `note-${caseN}-${sequence}`, text: body, ...(anchor ? { anchor } : {}) };
   return { ...book, [caseN]: [...book[caseN], note] };
 }
 

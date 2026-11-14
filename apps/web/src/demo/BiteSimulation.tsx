@@ -1,11 +1,10 @@
 /**
  * Occlusal biomechanics page. Numbers come from the local scenario file.
- * The jaw view is a separate copy of the reference mouth, not the Neuroview viewer.
+ * Bite-force maps are not available yet; the launch button remains intentionally inert.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { biteFactors, biteFindings, overallClass, type FactorStatus } from './bite-analysis.js';
 import { BITE_DISCLAIMER, BITE_SCENARIOS, biteScenario, scenarioForTraining, type BiteScenario } from './bite-scenarios.js';
-import { BiteJaw } from './BiteJaw.js';
 import { BAND_COLOR, BONE_THRESHOLDS, boneReading, pressureBand, type BoneKey } from './bite-view.js';
 
 type RunPhase = 'ready' | 'running' | 'paused' | 'done';
@@ -116,16 +115,10 @@ export function BiteSimulation({
           </button>
         ))}
       </div>
-      <div class="dv-bite-visual">
-        <BiteJaw scenario={scenario} progress={progress} />
-        <div class="dv-bite-legend">
-          <p class="dv-bite-flag">{BITE_DISCLAIMER}</p>
-          <p>Contact markers follow this scenario. They are not a calculated stress field.</p>
-          {(['low', 'moderate', 'elevated', 'high'] as const).map((band) => (
-            <span key={band}><i style={{ background: BAND_COLOR[band] }} />{band} · {band === 'low' ? '< 6 MPa' : band === 'moderate' ? '6–10' : band === 'elevated' ? '10–14' : '≥ 14'}</span>
-          ))}
-        </div>
-      </div>
+      {/* TODO(offhand): load the future GLB bite-force map here. */}
+      <button class="dv-bite-map-button" type="button" aria-label="Open bite force map">
+        Open bite force map
+      </button>
       <BoneOverload scenario={scenario} />
       {(phase === 'done' || request.focus === 'analysis' || request.focus === 'adjustments') && <AnalysisPanel scenario={scenario} focus={request.focus} />}
       <ScenarioDetail scenario={scenario} />
@@ -134,10 +127,14 @@ export function BiteSimulation({
 }
 
 const STATUS_COLOR: Record<FactorStatus, string> = {
-  Normal: '#3dbe6e',
-  Elevated: '#f5d33b',
-  'Exceeds Demo Threshold': '#e24b4b',
+  Normal: '#8ca17d',
+  Elevated: '#d0a75d',
+  'Exceeds Demo Threshold': '#c87869',
 };
+
+function Pulse() {
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 12h4l2-5 4 10 2-5h6v2h-4l-2 5-4-10-2 5H3z" /></svg>;
+}
 
 function AnalysisPanel({ scenario, focus }: { scenario: BiteScenario; focus: 'bone' | 'analysis' | 'adjustments' | null }) {
   const factors = biteFactors(scenario);

@@ -131,7 +131,7 @@ export class Viewer {
     this.patient.add(this.markers);
     this.scene.add(this.patient);
 
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x404050, 1.1));
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x40403d, 1.1));
     const key = new THREE.DirectionalLight(0xffffff, 1.6);
     key.position.set(0.5, 1, 1);
     this.camera.add(key); // light follows the camera, so the side you look at is always lit
@@ -154,6 +154,7 @@ export class Viewer {
   }
 
   dispose(): void {
+    this.loadToken += 1; // invalidate any GLTF loads still in flight before releasing the renderer
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     this.clear();
@@ -222,7 +223,8 @@ export class Viewer {
     const role = layerRole(def.label, def.id);
     const color = roleColor(role, def.color);
     const flat = role !== 'other';
-    const baseOpacity = role === 'skull' ? PALETTE.skullOpacity : def.defaultOpacity;
+    const dentalCase = this.loaded?.manifest.app === 'dental';
+    const baseOpacity = role === 'skull' && !dentalCase ? PALETTE.skullOpacity : def.defaultOpacity;
     const materials: THREE.MeshStandardMaterial[] = [];
     const outlines: THREE.LineBasicMaterial[] = [];
     root.traverse((o) => {
@@ -230,7 +232,7 @@ export class Viewer {
       if (!mesh.isMesh) return;
       const geom = mesh.geometry as THREE.BufferGeometry;
       if (!geom.getAttribute('normal')) geom.computeVertexNormals();
-      const useVertex = !!geom.getAttribute('color') && !flat;
+      const useVertex = !!geom.getAttribute('color') && !flat && !dentalCase;
       const old = mesh.material as THREE.Material | THREE.Material[];
       (Array.isArray(old) ? old : [old]).forEach((m) => m.dispose());
       const m = new THREE.MeshStandardMaterial({
@@ -630,7 +632,7 @@ export class Viewer {
     const plane = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({
-        color: 0x00ffff,
+        color: 0xc8a96f,
         transparent: true,
         opacity: 0.1,
         side: THREE.DoubleSide,
@@ -639,7 +641,7 @@ export class Viewer {
     );
     const edge = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, 1)),
-      new THREE.LineBasicMaterial({ color: 0x00ffff }),
+      new THREE.LineBasicMaterial({ color: 0xc8a96f }),
     );
     plane.renderOrder = edge.renderOrder = 900;
     g.add(plane, edge);

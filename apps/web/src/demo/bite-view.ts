@@ -15,10 +15,10 @@ export type BoneKey = keyof typeof BONE_THRESHOLDS;
 export type LoadBand = 'low' | 'moderate' | 'elevated' | 'high';
 
 export const BAND_COLOR: Record<LoadBand, string> = {
-  low: '#3d7eff',
-  moderate: '#3dbe6e',
-  elevated: '#f5d33b',
-  high: '#e24b4b',
+  low: '#918f83',
+  moderate: '#8ca17d',
+  elevated: '#d0a75d',
+  high: '#c87869',
 };
 
 /** Fixed demonstration bands so a harder scenario reads warmer than a light one. */

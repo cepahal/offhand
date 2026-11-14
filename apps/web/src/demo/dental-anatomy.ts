@@ -30,6 +30,7 @@ export interface HighlightRegion {
 
 export interface DentalTraining {
   n: 1 | 2 | 3 | 4 | 5;
+  tabLabel: string;
   title: string;
   explanation: string;
   highlight: HighlightRegion;
@@ -272,25 +273,30 @@ function build(n: DentalTraining['n']): { layers: BuiltLayer[]; highlight: Highl
 
 export const DENTAL_TRAININGS: DentalTraining[] = ([1, 2, 3, 4, 5] as const).map((n) => {
   const built = build(n);
-  const copy: Record<DentalTraining['n'], { title: string; explanation: string }> = {
+  const copy: Record<DentalTraining['n'], { tabLabel: string; title: string; explanation: string }> = {
     1: {
-      title: 'Training 1 · Right TMJ',
+      tabLabel: 'Right TMJ',
+      title: 'TMJ · Right',
       explanation: 'Synthetic model. Right temporomandibular disc, displaced forward. Not a patient scan.',
     },
     2: {
-      title: 'Training 2 · Left TMJ',
+      tabLabel: 'Left TMJ',
+      title: 'TMJ · Left',
       explanation: 'Synthetic model. Left condyle, flattened. A different joint presentation. Not a patient scan.',
     },
     3: {
-      title: 'Training 3 · Tooth 36',
+      tabLabel: 'Root canal · 36',
+      title: 'Root canal candidate · tooth 36',
       explanation: 'Synthetic model. Pulp chamber and root canals of tooth 36. Not a patient scan.',
     },
     4: {
-      title: 'Training 4 · Tooth 11',
+      tabLabel: 'Periapical · 11',
+      title: 'Periapical lesion review · tooth 11',
       explanation: 'Synthetic model. Periapical region at the apex of tooth 11. Not a patient scan.',
     },
     5: {
-      title: 'Training 5 · Tooth 48',
+      tabLabel: 'Impacted · 48',
+      title: 'Impacted tooth · 48',
       explanation: 'Synthetic model. Impacted tooth 48 and the nearby mandible. Not a patient scan.',
     },
   };

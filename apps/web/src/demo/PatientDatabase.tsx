@@ -119,7 +119,7 @@ export function PatientDatabase() {
       </div>
       {cursor.visible && (
         <svg class="dv-ai-cursor" style={{ left: `${cursor.x}px`, top: `${cursor.y}px` }} viewBox="0 0 24 24" aria-hidden="true">
-          <path fill="#5b46f5" d="M5 2l14 9-6 1 4 8-3 1-4-8-5 4V2z" />
+          <path fill="currentColor" d="M5 2l14 9-6 1 4 8-3 1-4-8-5 4V2z" />
         </svg>
       )}
     </div>
