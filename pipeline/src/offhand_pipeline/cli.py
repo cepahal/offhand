@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -40,6 +41,30 @@ def build(
         typer.secho(f"build failed: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(1) from e
     typer.secho(f"wrote {path}", fg=typer.colors.GREEN)
+
+
+@app.command()
+def toothfairy2(
+    case_dir: Path = typer.Argument(..., exists=True, file_okay=False, help="Folder with image.mha + label.mha."),
+    case_id: str = typer.Option(..., help="Case id, e.g. tf2-f001."),
+    title: str = typer.Option(..., help="Title shown in the viewer."),
+    dataset_json: Path = typer.Option(..., exists=True, dir_okay=False, help="ToothFairy2 dataset.json."),
+    specs: Path = typer.Option(Path("pipeline/specs/dental"), help="Where the generated spec is saved."),
+    max_faces: int = typer.Option(2_500_000, help="Total face budget across all layers."),
+) -> None:
+    """Generate a build spec for one ToothFairy2 case and build its case pack (casepacks/dental/<id>)."""
+    from .toothfairy2 import make_spec
+
+    specs.mkdir(parents=True, exist_ok=True)
+    spec_path = (specs / f"{case_id}.json").resolve()
+    spec = make_spec(case_dir, dataset_json, spec_path, case_id, title, max_faces)
+    spec_path.write_text(json.dumps(spec, indent=2) + "\n", encoding="utf-8")
+    try:
+        path = build_from_spec(spec_path)
+    except (SpecError, ValueError, FileNotFoundError) as e:
+        typer.secho(f"build failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from e
+    typer.secho(f"wrote {path} ({len(spec['layers'])} layers)", fg=typer.colors.GREEN)
 
 
 @app.command()

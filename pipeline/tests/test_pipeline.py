@@ -148,3 +148,36 @@ def test_build_from_spec(tmp_path: Path) -> None:
     assert f["center"] == pytest.approx([36, 36, 45], abs=1.0)
     total = sum(len(trimesh.load(out / layer["file"], force="mesh").faces) for layer in m["layers"])
     assert total <= 20000 + 4000
+
+
+def test_mha_is_read_as_ras(tmp_path: Path) -> None:
+    sitk = pytest.importorskip("SimpleITK")
+    from offhand_pipeline.volume import load_volume
+
+    arr = np.zeros((4, 5, 6), dtype=np.uint8)  # sitk array order [k, j, i]
+    arr[0, 0, 1] = 7  # i=1, j=0, k=0
+    img = sitk.GetImageFromArray(arr)
+    img.SetSpacing((0.5, 0.5, 0.5))
+    img.SetOrigin((10.0, 20.0, 30.0))  # LPS
+    sitk.WriteImage(img, str(tmp_path / "v.mha"))
+    v = load_volume(tmp_path / "v.mha")
+    assert v.data.shape == (6, 5, 4) and v.data[1, 0, 0] == 7
+    # LPS (10.5, 20, 30) -> RAS (-10.5, -20, 30)
+    np.testing.assert_allclose(v.affine @ [1, 0, 0, 1], [-10.5, -20.0, 30.0, 1.0])
+
+
+def test_toothfairy2_orientation_fix_detects_rotated_header() -> None:
+    from offhand_pipeline.toothfairy2 import orientation_fix
+    from offhand_pipeline.volume import Volume
+
+    data = np.zeros((40, 40, 40), dtype=np.uint8)
+    # Correct anatomy in RAS index space: right teeth at high i, upper at high k, incisors at high j.
+    data[30, 30, 30] = 11; data[30, 10, 30] = 16  # upper right incisor / molar
+    data[10, 30, 30] = 21; data[10, 10, 30] = 26  # upper left
+    data[30, 30, 10] = 41; data[30, 10, 10] = 46  # lower right
+    data[10, 30, 10] = 31; data[10, 10, 10] = 36  # lower left
+    np.testing.assert_array_equal(orientation_fix(Volume(data, np.eye(4))), np.eye(4))
+    rotated = data[::-1, :, ::-1].copy()  # 180 degrees about A: R and S both flipped
+    np.testing.assert_array_equal(orientation_fix(Volume(rotated, np.eye(4))), np.diag([-1, 1, -1, 1]))
+    with pytest.raises(ValueError, match="mirror"):
+        orientation_fix(Volume(data[::-1].copy(), np.eye(4)))

@@ -17,12 +17,16 @@ __pycache__/
 
 # Large / licensed data never goes in git (dataset licences forbid redistribution in several cases)
 data/
+ToothFairy2_selected_candidates/
 casepacks/**/*.glb
 casepacks/**/*.nii
 casepacks/**/*.nii.gz
 casepacks/**/*.dcm
 # ...except the generated TEST PATTERN pack, which is synthetic geometry (not anatomy)
 !casepacks/test-pattern/**
+# ...and the ToothFairy2 dental packs (CC BY-SA 4.0: redistribution allowed with credit + same licence;
+# citation is in each manifest.json). Every file is < 100 MB (largest volume ~68 MB).
+!casepacks/dental/**
 
 # Arduino build output
 firmware/**/build/

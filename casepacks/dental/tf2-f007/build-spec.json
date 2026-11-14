@@ -1,0 +1,371 @@
+{
+  "app": "dental",
+  "caseId": "tf2-f007",
+  "title": "ToothFairy2 CBCT F007 (tooth 36)",
+  "source": {
+    "dataset": "ToothFairy2 (MICCAI 2024 challenge, training set)",
+    "url": "https://ditto.ing.unimore.it/toothfairy2/",
+    "license": "CC BY-SA 4.0",
+    "citation": "Bolelli F. et al. (2026) Multi-structure segmentation in CBCT volumes: The ToothFairy2 challenge. Medical Image Analysis, 104095. doi:10.1016/j.media.2026.104095; Bolelli F. et al. (2025) Segmenting Maxillofacial Structures in CBCT Volume, CVPR. Meshes derived from the dataset's expert labels. Not for diagnosis.",
+    "subjectId": "Candidate_F007"
+  },
+  "labels": "../../../ToothFairy2_selected_candidates/Training_03_Root_Canal_Tooth_36/Candidate_F007/label.mha",
+  "layers": [
+    {
+      "id": "lower-jawbone",
+      "label": "Lower Jawbone",
+      "values": [
+        1
+      ],
+      "color": "#e8dcc4",
+      "defaultOpacity": 1.0,
+      "peelOrder": 0
+    },
+    {
+      "id": "upper-jawbone",
+      "label": "Upper Jawbone",
+      "values": [
+        2
+      ],
+      "color": "#e8dcc4",
+      "defaultOpacity": 1.0,
+      "peelOrder": 0
+    },
+    {
+      "id": "left-ia-canal",
+      "label": "Left Inferior Alveolar Canal",
+      "values": [
+        3
+      ],
+      "color": "#f2c230",
+      "defaultOpacity": 1.0,
+      "peelOrder": 2
+    },
+    {
+      "id": "right-ia-canal",
+      "label": "Right Inferior Alveolar Canal",
+      "values": [
+        4
+      ],
+      "color": "#f2c230",
+      "defaultOpacity": 1.0,
+      "peelOrder": 2
+    },
+    {
+      "id": "left-maxillary-sinus",
+      "label": "Left Maxillary Sinus",
+      "values": [
+        5
+      ],
+      "color": "#7fb3d5",
+      "defaultOpacity": 0.35,
+      "peelOrder": 0
+    },
+    {
+      "id": "right-maxillary-sinus",
+      "label": "Right Maxillary Sinus",
+      "values": [
+        6
+      ],
+      "color": "#7fb3d5",
+      "defaultOpacity": 0.35,
+      "peelOrder": 0
+    },
+    {
+      "id": "pharynx",
+      "label": "Pharynx",
+      "values": [
+        7
+      ],
+      "color": "#9ec9e2",
+      "defaultOpacity": 0.25,
+      "peelOrder": 0
+    },
+    {
+      "id": "tooth-11",
+      "label": "Tooth 11 (Upper Right Central Incisor)",
+      "values": [
+        11
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-13",
+      "label": "Tooth 13 (Upper Right Canine)",
+      "values": [
+        13
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-14",
+      "label": "Tooth 14 (Upper Right First Premolar)",
+      "values": [
+        14
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-15",
+      "label": "Tooth 15 (Upper Right Second Premolar)",
+      "values": [
+        15
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-16",
+      "label": "Tooth 16 (Upper Right First Molar)",
+      "values": [
+        16
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-17",
+      "label": "Tooth 17 (Upper Right Second Molar)",
+      "values": [
+        17
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-21",
+      "label": "Tooth 21 (Upper Left Central Incisor)",
+      "values": [
+        21
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-22",
+      "label": "Tooth 22 (Upper Left Lateral Incisor)",
+      "values": [
+        22
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-23",
+      "label": "Tooth 23 (Upper Left Canine)",
+      "values": [
+        23
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-24",
+      "label": "Tooth 24 (Upper Left First Premolar)",
+      "values": [
+        24
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-25",
+      "label": "Tooth 25 (Upper Left Second Premolar)",
+      "values": [
+        25
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-26",
+      "label": "Tooth 26 (Upper Left First Molar)",
+      "values": [
+        26
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-27",
+      "label": "Tooth 27 (Upper Left Second Molar)",
+      "values": [
+        27
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-32",
+      "label": "Tooth 32 (Lower Left Lateral Incisor)",
+      "values": [
+        32
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-33",
+      "label": "Tooth 33 (Lower Left Canine)",
+      "values": [
+        33
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-34",
+      "label": "Tooth 34 (Lower Left First Premolar)",
+      "values": [
+        34
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-35",
+      "label": "Tooth 35 (Lower Left Second Premolar)",
+      "values": [
+        35
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-36",
+      "label": "Tooth 36 (Lower Left First Molar)",
+      "values": [
+        36
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-41",
+      "label": "Tooth 41 (Lower Right Central Incisor)",
+      "values": [
+        41
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-42",
+      "label": "Tooth 42 (Lower Right Lateral Incisor)",
+      "values": [
+        42
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-43",
+      "label": "Tooth 43 (Lower Right Canine)",
+      "values": [
+        43
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-44",
+      "label": "Tooth 44 (Lower Right First Premolar)",
+      "values": [
+        44
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-45",
+      "label": "Tooth 45 (Lower Right Second Premolar)",
+      "values": [
+        45
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    },
+    {
+      "id": "tooth-46",
+      "label": "Tooth 46 (Lower Right First Molar)",
+      "values": [
+        46
+      ],
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1
+    }
+  ],
+  "volumes": [
+    {
+      "id": "cbct",
+      "file": "../../../ToothFairy2_selected_candidates/Training_03_Root_Canal_Tooth_36/Candidate_F007/image.mha",
+      "modality": "CBCT",
+      "sequence": "CBCT",
+      "dtype": "int16",
+      "cropToLabels": {
+        "labels": "../../../ToothFairy2_selected_candidates/Training_03_Root_Canal_Tooth_36/Candidate_F007/label.mha",
+        "marginMm": 10
+      }
+    }
+  ],
+  "findings": [],
+  "share": {
+    "templateId": "default",
+    "pollOptions": []
+  },
+  "policyId": "default",
+  "maxFaces": 2500000,
+  "worldTransform": [
+    [
+      -1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      -1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ]
+}

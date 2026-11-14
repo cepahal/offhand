@@ -42,7 +42,7 @@ from scipy import ndimage
 
 from . import casepack
 from .mesh import components, decimate, mask_to_mesh, split_budget
-from .volume import Volume, load_volume, save_nifti
+from .volume import Volume, crop_to, label_bounds_ras, load_volume, save_nifti
 
 DEFAULT_MAX_FACES = 300_000
 
@@ -93,7 +93,19 @@ def build_from_spec(spec_path: Path, out: Path | None = None, repo_root: Path | 
     volume_entries = []
     for v in spec.get("volumes", []):
         vid = _req(v, "id", "volume")
-        src = load_volume(base / _req(v, "file", f"volume {vid}"))
+        src = _load(spec, base / _req(v, "file", f"volume {vid}"))
+        if "cropToLabels" in v:  # {"labels": "<label map>", "marginMm": 10}
+            c = v["cropToLabels"]
+            lo, hi = label_bounds_ras(_load(spec, base / _req(c, "labels", f"volume {vid} crop")),
+                                      float(c.get("marginMm", 10)))
+            src = crop_to(src, lo, hi)
+        if "dtype" in v:  # e.g. "int16" for HU-valued CT/CBCT stored as float64
+            dt = np.dtype(v["dtype"])
+            data = np.asarray(src.data)
+            if np.issubdtype(dt, np.integer):
+                info = np.iinfo(dt)
+                data = np.clip(np.round(data), info.min, info.max)
+            src = Volume(data=data.astype(dt), affine=src.affine)
         save_nifti(src, out / "volumes" / f"{vid}.nii.gz")
         entry = {
             "id": vid,
@@ -138,7 +150,7 @@ def _layers_from_volume(
 
     def vol(rel: str) -> Volume:
         if rel not in cache:
-            cache[rel] = load_volume(base / rel)
+            cache[rel] = _load(spec, base / rel)
         return cache[rel]
 
     out: dict[str, trimesh.Trimesh] = {}
@@ -211,7 +223,7 @@ def _findings(spec: dict[str, Any], base: Path) -> list[dict[str, Any]]:
         labels_rel = rule.get("labels", spec.get("labels"))
         if not labels_rel:
             raise SpecError("finding rule: no 'labels' map")
-        v = load_volume(base / labels_rel)
+        v = _load(spec, base / labels_rel)
         values = _req(rule, "values", "finding rule")
         prefix = _req(rule, "labelPrefix", "finding rule")
         comps = components(
@@ -230,3 +242,18 @@ def _findings(spec: dict[str, Any], base: Path) -> list[dict[str, Any]]:
                     f[key] = rule[key]
             out.append(f)
     return out
+
+
+def _load(spec: dict[str, Any], path: Path) -> Volume:
+    """Load a volume; apply the spec's optional "worldTransform" (4x4, RAS -> RAS) to its affine.
+
+    Used when a dataset's header orientation is known to be wrong (checked against anatomy, e.g.
+    upper teeth must be superior to lower teeth), so labels and image are corrected together.
+    """
+    v = load_volume(path)
+    if "worldTransform" in spec:
+        t = np.asarray(spec["worldTransform"], dtype=float)
+        if t.shape != (4, 4):
+            raise SpecError("worldTransform must be a 4x4 matrix")
+        v = Volume(data=v.data, affine=t @ v.affine)
+    return v

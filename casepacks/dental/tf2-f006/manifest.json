@@ -1,0 +1,311 @@
+{
+  "schema": 1,
+  "app": "dental",
+  "caseId": "tf2-f006",
+  "title": "ToothFairy2 CBCT F006 (jaw / TMJ region)",
+  "source": {
+    "dataset": "ToothFairy2 (MICCAI 2024 challenge, training set)",
+    "url": "https://ditto.ing.unimore.it/toothfairy2/",
+    "license": "CC BY-SA 4.0",
+    "citation": "Bolelli F. et al. (2026) Multi-structure segmentation in CBCT volumes: The ToothFairy2 challenge. Medical Image Analysis, 104095. doi:10.1016/j.media.2026.104095; Bolelli F. et al. (2025) Segmenting Maxillofacial Structures in CBCT Volume, CVPR. Meshes derived from the dataset's expert labels. Not for diagnosis.",
+    "subjectId": "Candidate_F006"
+  },
+  "deidentified": true,
+  "coordinateSystem": "RAS",
+  "units": "mm",
+  "layers": [
+    {
+      "id": "lower-jawbone",
+      "label": "Lower Jawbone",
+      "file": "layers/lower-jawbone.glb",
+      "color": "#e8dcc4",
+      "defaultOpacity": 1.0,
+      "peelOrder": 0,
+      "kind": "surface"
+    },
+    {
+      "id": "upper-jawbone",
+      "label": "Upper Jawbone",
+      "file": "layers/upper-jawbone.glb",
+      "color": "#e8dcc4",
+      "defaultOpacity": 1.0,
+      "peelOrder": 0,
+      "kind": "surface"
+    },
+    {
+      "id": "left-ia-canal",
+      "label": "Left Inferior Alveolar Canal",
+      "file": "layers/left-ia-canal.glb",
+      "color": "#f2c230",
+      "defaultOpacity": 1.0,
+      "peelOrder": 2,
+      "kind": "surface"
+    },
+    {
+      "id": "right-ia-canal",
+      "label": "Right Inferior Alveolar Canal",
+      "file": "layers/right-ia-canal.glb",
+      "color": "#f2c230",
+      "defaultOpacity": 1.0,
+      "peelOrder": 2,
+      "kind": "surface"
+    },
+    {
+      "id": "pharynx",
+      "label": "Pharynx",
+      "file": "layers/pharynx.glb",
+      "color": "#9ec9e2",
+      "defaultOpacity": 0.25,
+      "peelOrder": 0,
+      "kind": "surface"
+    },
+    {
+      "id": "crown",
+      "label": "Crown",
+      "file": "layers/crown.glb",
+      "color": "#c8ced4",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-11",
+      "label": "Tooth 11 (Upper Right Central Incisor)",
+      "file": "layers/tooth-11.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-12",
+      "label": "Tooth 12 (Upper Right Lateral Incisor)",
+      "file": "layers/tooth-12.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-13",
+      "label": "Tooth 13 (Upper Right Canine)",
+      "file": "layers/tooth-13.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-14",
+      "label": "Tooth 14 (Upper Right First Premolar)",
+      "file": "layers/tooth-14.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-16",
+      "label": "Tooth 16 (Upper Right First Molar)",
+      "file": "layers/tooth-16.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-17",
+      "label": "Tooth 17 (Upper Right Second Molar)",
+      "file": "layers/tooth-17.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-21",
+      "label": "Tooth 21 (Upper Left Central Incisor)",
+      "file": "layers/tooth-21.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-22",
+      "label": "Tooth 22 (Upper Left Lateral Incisor)",
+      "file": "layers/tooth-22.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-23",
+      "label": "Tooth 23 (Upper Left Canine)",
+      "file": "layers/tooth-23.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-24",
+      "label": "Tooth 24 (Upper Left First Premolar)",
+      "file": "layers/tooth-24.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-25",
+      "label": "Tooth 25 (Upper Left Second Premolar)",
+      "file": "layers/tooth-25.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-26",
+      "label": "Tooth 26 (Upper Left First Molar)",
+      "file": "layers/tooth-26.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-27",
+      "label": "Tooth 27 (Upper Left Second Molar)",
+      "file": "layers/tooth-27.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-31",
+      "label": "Tooth 31 (Lower Left Central Incisor)",
+      "file": "layers/tooth-31.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-32",
+      "label": "Tooth 32 (Lower Left Lateral Incisor)",
+      "file": "layers/tooth-32.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-33",
+      "label": "Tooth 33 (Lower Left Canine)",
+      "file": "layers/tooth-33.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-34",
+      "label": "Tooth 34 (Lower Left First Premolar)",
+      "file": "layers/tooth-34.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-35",
+      "label": "Tooth 35 (Lower Left Second Premolar)",
+      "file": "layers/tooth-35.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-41",
+      "label": "Tooth 41 (Lower Right Central Incisor)",
+      "file": "layers/tooth-41.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-42",
+      "label": "Tooth 42 (Lower Right Lateral Incisor)",
+      "file": "layers/tooth-42.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-43",
+      "label": "Tooth 43 (Lower Right Canine)",
+      "file": "layers/tooth-43.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-44",
+      "label": "Tooth 44 (Lower Right First Premolar)",
+      "file": "layers/tooth-44.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-45",
+      "label": "Tooth 45 (Lower Right Second Premolar)",
+      "file": "layers/tooth-45.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-46",
+      "label": "Tooth 46 (Lower Right First Molar)",
+      "file": "layers/tooth-46.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    },
+    {
+      "id": "tooth-47",
+      "label": "Tooth 47 (Lower Right Second Molar)",
+      "file": "layers/tooth-47.glb",
+      "color": "#f7f3e8",
+      "defaultOpacity": 1.0,
+      "peelOrder": 1,
+      "kind": "surface"
+    }
+  ],
+  "volumes": [
+    {
+      "id": "cbct",
+      "file": "volumes/cbct.nii.gz",
+      "modality": "CBCT",
+      "sequence": "CBCT"
+    }
+  ],
+  "findings": [],
+  "share": {
+    "templateId": "default",
+    "pollOptions": []
+  },
+  "policyId": "default"
+}
