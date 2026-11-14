@@ -11,6 +11,8 @@ import { CBCTWorkspace, type ScanPoint, DENTAL_CANDIDATE_GROUPS, DENTAL_CANDIDAT
 import type { StageControl } from './DentalStage.js';
 import { resolveTooth } from './bite-analysis.js';
 import { BiteSimulation } from './BiteSimulation.js';
+import { CrownFit } from './CrownFit.js';
+import { OcclusalReport } from './OcclusalReport.js';
 import { useHackAssistant } from './hack-session.js';
 import { PatientDatabase } from './PatientDatabase.js';
 import { openPatientWindow, updatePrescription } from './patient-record.js';
@@ -107,6 +109,15 @@ export function DentalView() {
       if (event.ctrlKey || event.altKey || event.metaKey || event.repeat) return;
       const name = gestureFromKey(event.key);
       if (!name) return;
+      const scroller = document.querySelector('.cf-scroll');
+      const overOrbit = !!document.querySelector('[data-orbit]:hover');
+      if (scroller && !overOrbit && (name === 'up' || name === 'down' || name === 'left' || name === 'right')) {
+        event.preventDefault();
+        scroller.scrollBy({ top: name === 'up' || name === 'left' ? -140 : 140 });
+        setGestureLabel('Keyboard · scroll');
+        return;
+      }
+      if (scroller && !overOrbit && (name === 'forward' || name === 'backward' || name === 'cw' || name === 'ccw')) return;
       event.preventDefault();
       keyboardSeq += 1;
       applyGesture({ g: name, seq: keyboardSeq }, 'keyboard');
@@ -185,7 +196,7 @@ export function DentalView() {
           </button>
         </div>
       </header>
-      <div class="dv-body grid min-h-0">
+      <div class={`dv-body grid min-h-0 ${page === 'bite' && active.n === 3 ? 'is-crown' : ''}`}>
         <nav class="dv-nav">
           <span class="dv-rail-label">WORKSPACE</span>
           <button class={page === 'view' ? 'on' : ''} type="button" onClick={() => setPage('view')}><Tooth /><span>Scan review</span></button>
@@ -201,12 +212,17 @@ export function DentalView() {
         </nav>
         <main class="dv-main min-w-0 min-h-0">
           <div class="dv-main-head">
-            <div><span class="dv-overline">CASE WORKSPACE / {candidate.id.toUpperCase()}</span><h1>{page === 'view' ? active.title : page === 'bite' ? 'Pressure analysis' : page[0]!.toUpperCase() + page.slice(1)}</h1></div>
+            <div><span class="dv-overline">CASE WORKSPACE / {candidate.id.toUpperCase()}</span><h1>{page === 'view' ? active.title : page === 'bite' && active.n === 3 ? 'Crown fit analysis · tooth 36' : page === 'bite' ? 'Pressure analysis' : page[0]!.toUpperCase() + page.slice(1)}</h1></div>
             <div class="dv-case-tags"><span>FDI {['18 / 48', '28 / 38', '36', '11', '48'][active.n - 1]}</span><span>Research candidate</span></div>
           </div>
           <div class="dv-main-content">
             {page === 'view' ? (
               <NeuroStage training={training} setTraining={setTraining} candidateId={candidate.id} onCandidateChange={(id) => setCandidateSelection((current) => ({ ...current, [active.n]: id }))} onTrainingCandidateChange={selectCandidate} viewer={viewer} notes={caseNotes} onScanPoint={setScanPoint} command={micNote || hack.command} gestureLabel={gestureLabel} awaiting={hack.pending !== null} onEnableMic={() => { void primeMicrophone().then((error) => setMicNote(error ?? 'Microphone enabled. Wave, then speak in Google Chrome.')); }} />
+            ) : page === 'bite' && active.n === 3 ? (
+              <div class="cf-scroll">
+                <CrownFit candidateId={candidate.id} bind={(next) => { viewer.current = next; }} />
+                <OcclusalReport candidateId={candidate.id} />
+              </div>
             ) : page === 'bite' ? (
               <BiteSimulation trainingTitle={active.title} patientName="Deidentified subject" request={biteRequest} onNote={hack.note} />
             ) : (
