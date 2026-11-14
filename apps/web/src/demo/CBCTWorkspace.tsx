@@ -201,11 +201,13 @@ export function CBCTWorkspace({
     }
     void (async () => {
       try {
-        const [manifestResponse, appsResponse] = await Promise.all([
+        const [apiManifest, appsResponse, localManifest] = await Promise.all([
           fetch(`/api/cases/dental/${encodeURIComponent(candidateId)}`),
           fetch('/api/apps').catch(() => null),
+          fetch(`/casepacks/dental/${encodeURIComponent(candidateId)}/manifest.json`),
         ]);
         if (cancelled) return;
+        const manifestResponse = apiManifest.ok ? apiManifest : localManifest;
         if (!manifestResponse.ok) throw new Error(`Candidate ${candidateId} could not be loaded (HTTP ${manifestResponse.status}).`);
         const raw = (await manifestResponse.json()) as CasePackManifest;
         const manifest = applyTargetTint(raw, training);

@@ -113,6 +113,20 @@ export function voiceInputAvailable(): boolean {
   return whisperUrl() !== '' || speechCtor() !== null;
 }
 
+/** Ask for the microphone from a click. A wave alone is not a user gesture, so Chrome will not open the mic until this has succeeded once. */
+export async function primeMicrophone(): Promise<string | null> {
+  if (!navigator.mediaDevices?.getUserMedia) return 'This browser has no microphone.';
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+    return null;
+  } catch (err) {
+    const name = err instanceof DOMException ? err.name : '';
+    if (name === 'NotAllowedError' || name === 'SecurityError') return 'Microphone permission was denied.';
+    return 'The microphone could not be opened.';
+  }
+}
+
 export interface HoldSession {
   stop(): void;
 }

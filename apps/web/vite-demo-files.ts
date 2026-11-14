@@ -114,8 +114,34 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<boolean
     sendJson(res, 200, neuroIndex(join(casepackRoot, 'neuroview')));
     return true;
   }
-  // Keep the standalone NeuroView demo usable without the hub. All other case packs,
-  // including the dental candidates, must fall through to Vite's hub proxy.
+  // Dental candidates live in this repo. Serve them here so a hub from another
+  // checkout cannot 404 tf2-f001 through tf2-f010.
+  if (url.startsWith('/casepacks/dental/') && req.method === 'GET') {
+    const rel = decodeURIComponent(url.slice('/casepacks/'.length));
+    const allowed = rel.endsWith('.json') || rel.endsWith('.glb') || rel.endsWith('.gltf') || rel.endsWith('.nii.gz') || rel.endsWith('.stl');
+    if (rel.includes('..') || rel.includes('\\') || !allowed) {
+      sendJson(res, 400, { ok: false });
+      return true;
+    }
+    const file = resolve(casepackRoot, rel);
+    if (!inside(casepackRoot, file) || !existsSync(file) || !statSync(file).isFile()) {
+      sendJson(res, 404, { ok: false });
+      return true;
+    }
+    const type = rel.endsWith('.json')
+      ? 'application/json; charset=utf-8'
+      : rel.endsWith('.nii.gz')
+        ? 'application/gzip'
+        : rel.endsWith('.glb')
+          ? 'model/gltf-binary'
+          : 'application/octet-stream';
+    res.statusCode = 200;
+    res.setHeader('content-type', type);
+    res.setHeader('cache-control', 'no-store');
+    createReadStream(file).pipe(res);
+    return true;
+  }
+  // Keep the standalone NeuroView demo usable without the hub.
   if (url.startsWith('/casepacks/neuroview/')) {
     const rel = decodeURIComponent(url.slice('/casepacks/'.length));
     if (rel.includes('..') || rel.includes('\\') || !rel.endsWith('.nii.gz')) {

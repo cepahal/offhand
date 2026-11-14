@@ -1,9 +1,10 @@
 /** offhand's deidentified ToothFairy2 CBCT review workspace. */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { makeCommand, type ViewerCommand } from '@hoverscan/contracts';
+import { makeCommand, type GestureName, type ViewerCommand } from '@hoverscan/contracts';
 import { GESTURE_TEXT } from '../viewer/logic.js';
 import { HubClient } from '../app/hub.js';
 import { createGestureGate } from './dental-gestures.js';
+import { gestureFromKey } from './dental-keyboard.js';
 import { addCaseNote, annotate, emptyNoteBook, notesFor, setAnnotationSink, type CaseNote, type NoteBook } from './annotations.js';
 import { DENTAL_TRAININGS } from './dental-anatomy.js';
 import { CBCTWorkspace, type ScanPoint, DENTAL_CANDIDATE_GROUPS, DENTAL_CANDIDATES } from './CBCTWorkspace.js';
@@ -13,6 +14,7 @@ import { BiteSimulation } from './BiteSimulation.js';
 import { useHackAssistant } from './hack-session.js';
 import { PatientDatabase } from './PatientDatabase.js';
 import { openPatientWindow, updatePrescription } from './patient-record.js';
+import { primeMicrophone } from './voice-listen.js';
 
 type Page = 'view' | 'bite' | 'dashboard' | 'reports' | 'settings';
 
@@ -36,7 +38,9 @@ export function DentalView() {
   const [notes, setNotes] = useState<NoteBook>(emptyNoteBook);
   const [scanPoint, setScanPoint] = useState<ScanPoint | null>(null);
   const viewer = useRef<StageControl | null>(null);
-  const [gestureLabel, setGestureLabel] = useState('Board idle');
+  const [boardLabel, setBoardLabel] = useState('Board disconnected');
+  const [gestureLabel, setGestureLabel] = useState('No gesture yet');
+  const [micNote, setMicNote] = useState('');
   const armRef = useRef<() => void>(() => {});
   const active = DENTAL_TRAININGS[training] ?? DENTAL_TRAININGS[0]!;
   const caseRef = useRef(active.n);
@@ -61,16 +65,11 @@ export function DentalView() {
   }, []);
   useEffect(() => {
     const gate = createGestureGate();
-    const client = new HubClient();
-    client.onStatus((status) => {
-      if (status === 'closed') setGestureLabel('Board offline');
-      if (status === 'open') setGestureLabel((current) => (current === 'Board offline' ? 'Board idle' : current));
-    });
-    client.on((env) => {
-      if (env.ch !== 'gesture' || env.ev.t !== 'g') return;
-      const action = gate.accept(env.ev, Date.now());
+    let keyboardSeq = 1_000_000;
+    const applyGesture = (hit: { g: GestureName; seq: number }, source: 'keyboard' | 'board') => {
+      const action = gate.accept(hit, Date.now());
       if (!action) return;
-      setGestureLabel(GESTURE_TEXT[env.ev.g] ?? env.ev.g);
+      setGestureLabel(`${source === 'keyboard' ? 'Keyboard' : 'Board'} · ${GESTURE_TEXT[hit.g] ?? hit.g}`);
       if (action.type === 'wake') {
         armRef.current();
         return;
@@ -80,9 +79,44 @@ export function DentalView() {
         return;
       }
       viewer.current?.apply(makeCommand(action, 'gesture'));
+    };
+    const client = new HubClient();
+    client.onStatus((status) => {
+      if (status === 'closed') setBoardLabel('Board disconnected');
+    });
+    client.on((env) => {
+      if (env.ch !== 'gesture' || env.ev.t !== 'g') return;
+      applyGesture(env.ev, 'board');
     });
     client.connect();
-    return () => client.close();
+    const readBoard = () => {
+      void fetch('/api/gesture/status')
+        .then(async (response) => (response.ok ? response.json() : null))
+        .then((value: unknown) => {
+          const state = value && typeof value === 'object' && 'state' in value ? String((value as { state?: unknown }).state) : '';
+          if (state === 'live') setBoardLabel('Board connected');
+          else setBoardLabel('Board disconnected');
+        })
+        .catch(() => setBoardLabel('Board disconnected'));
+    };
+    readBoard();
+    const boardTimer = window.setInterval(readBoard, 4000);
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+      if (event.ctrlKey || event.altKey || event.metaKey || event.repeat) return;
+      const name = gestureFromKey(event.key);
+      if (!name) return;
+      event.preventDefault();
+      keyboardSeq += 1;
+      applyGesture({ g: name, seq: keyboardSeq }, 'keyboard');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.clearInterval(boardTimer);
+      window.removeEventListener('keydown', onKey);
+      client.close();
+    };
   }, []);
   const hack = useHackAssistant({
     showPatient: () => openPatientWindow(),
@@ -141,8 +175,8 @@ export function DentalView() {
           <small>{candidate.id.toUpperCase()} <i /> TOOTHFAIRY2 RESEARCH DATA</small>
         </div>
         <div class="dv-top-right">
-          <span class={`dv-connection ${gestureLabel === 'Board offline' ? 'is-offline' : ''}`}>
-            <i />{gestureLabel === 'Board offline' ? 'Board offline' : 'Gesture board'}
+          <span class={`dv-connection ${boardLabel === 'Board disconnected' ? 'is-offline' : ''}`}>
+            <i />{boardLabel}
           </span>
           <button class="dv-user" type="button" onClick={() => openPatientWindow()} title="Open patient record">
             <span class="dv-user-mark" aria-hidden="true">OY</span>
@@ -172,7 +206,7 @@ export function DentalView() {
           </div>
           <div class="dv-main-content">
             {page === 'view' ? (
-              <NeuroStage training={training} setTraining={setTraining} candidateId={candidate.id} onCandidateChange={(id) => setCandidateSelection((current) => ({ ...current, [active.n]: id }))} onTrainingCandidateChange={selectCandidate} viewer={viewer} notes={caseNotes} onScanPoint={setScanPoint} command={hack.command} gestureLabel={gestureLabel} awaiting={hack.pending !== null} />
+              <NeuroStage training={training} setTraining={setTraining} candidateId={candidate.id} onCandidateChange={(id) => setCandidateSelection((current) => ({ ...current, [active.n]: id }))} onTrainingCandidateChange={selectCandidate} viewer={viewer} notes={caseNotes} onScanPoint={setScanPoint} command={micNote || hack.command} gestureLabel={gestureLabel} awaiting={hack.pending !== null} onEnableMic={() => { void primeMicrophone().then((error) => setMicNote(error ?? 'Microphone enabled. Wave, then speak in Google Chrome.')); }} />
             ) : page === 'bite' ? (
               <BiteSimulation trainingTitle={active.title} patientName="Deidentified subject" request={biteRequest} onNote={hack.note} />
             ) : (
@@ -184,7 +218,7 @@ export function DentalView() {
           <div class="dv-panel-heading"><div><span class="dv-overline">REVIEW DETAILS</span><h2>Case context</h2></div><span class="dv-context-id">{candidate.id.toUpperCase()}</span></div>
           <article class="dv-card dv-patient-card">
             <Person />
-            <div><h2>Subject</h2><p class="dv-patient-name">{candidate.subjectId}</p><p>Deidentified <i /> Age not supplied</p></div>
+            <div><h2>Subject</h2><p class="dv-patient-name">{candidate.subjectId}</p><p>Deidentified <i /> Age not supplied</p>{hack.patientMessage ? <p class="dv-muted">{hack.patientMessage}</p> : null}</div>
             <button type="button" aria-label="Open patient record" onClick={() => openPatientWindow()}><Caret /></button>
           </article>
           <article class="dv-card dv-finding-card">
@@ -234,6 +268,7 @@ function NeuroStage({
   command,
   gestureLabel,
   awaiting,
+  onEnableMic,
 }: {
   training: number;
   setTraining: (index: number) => void;
@@ -246,6 +281,7 @@ function NeuroStage({
   command: string;
   gestureLabel: string;
   awaiting: boolean;
+  onEnableMic: () => void;
 }) {
   const active = DENTAL_TRAININGS[training] ?? DENTAL_TRAININGS[0]!;
   return (
@@ -272,7 +308,7 @@ function NeuroStage({
       </div>
       <CBCTWorkspace key={candidateId} training={active.n} candidateId={candidateId} notes={notes} onCandidateChange={onCandidateChange} onScanPoint={onScanPoint} bind={(next) => { viewer.current = next; }} />
       <div class="dv-stage-footer">
-        <div class="dv-gesture-status"><Hand /><span><b>Gesture controls</b><small>{gestureLabel} · {awaiting ? 'Wave to confirm' : 'Wave to listen'}</small></span></div>
+        <div class="dv-gesture-status"><Hand /><span><b>Gesture controls</b><small>{gestureLabel} · {awaiting ? 'Wave to confirm' : 'Wave to listen'}</small></span><button type="button" onClick={onEnableMic}>Enable microphone</button></div>
         <div class="dv-cmd"><span class="dv-orb" /><span>{command || 'Ready for a command'}</span><i /></div>
       </div>
     </section>

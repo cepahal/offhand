@@ -197,8 +197,10 @@ export function useHackAssistant(handlers: HackHandlers): {
     if (needsConfirm(next)) {
       setPending({ command: next, label });
       setPhase('Awaiting Confirmation');
-      setActivity('Wave to confirm');
+      setActivity('Awaiting confirmation');
       setCommand(`${label}. Wave to confirm.`);
+      if (next.command === 'message_patient') setPatientMessage('Prepared');
+      if (next.command === 'message_hospital') setHospitalMessage('Prepared');
       return;
     }
     setPending(null);
@@ -225,6 +227,8 @@ export function useHackAssistant(handlers: HackHandlers): {
     const buffer = (interim ? `${spokenRef.current} ${cleaned}` : spokenRef.current).trim();
     if (!buffer) return;
     wakeRef.current = { phase: 'capture', buffer, lastVoiceAt: Date.now() };
+    setCommand(buffer);
+    setActivity(buffer);
     window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => {
       const taken = takeCommand(wakeRef.current, Date.now());
@@ -246,8 +250,7 @@ export function useHackAssistant(handlers: HackHandlers): {
           setActivity('Preparing');
           const local = interpretCommand(heard);
           const fromModel = raw ? commandFromModel(raw) : null;
-          const bite = ['open_bite', 'simulate_bite', 'show_bone', 'show_analysis', 'show_adjustments', 'replay_bite'].includes(local.command);
-          stage(bite ? local : fromModel && fromModel.command !== 'ask' ? fromModel : local);
+          stage(local.command !== 'ask' ? local : fromModel && fromModel.command !== 'ask' ? fromModel : local);
         })
         .catch(() => {
           setPhase('Preparing');
@@ -281,8 +284,14 @@ export function useHackAssistant(handlers: HackHandlers): {
       onError(message) {
         stopMic();
         setPhase('Idle');
-        setActivity(message);
-        setCommand('Wave, then speak.');
+        const network = /network/i.test(message);
+        const shown = network
+          ? 'Speech recognition needs Google Chrome with the microphone allowed. This browser sent the audio and got a network error.'
+          : /denied|not-allowed/i.test(message)
+            ? `${message} Click Enable microphone, then wave again.`
+            : message;
+        setActivity(shown);
+        setCommand(shown);
       },
     });
   }
