@@ -28,10 +28,6 @@ describe('dental gesture mapping', () => {
     expect(gate.accept({ g: 'right', seq: 4 }, 1100)).toBeNull();
     expect(gate.accept({ g: 'right', seq: 5 }, 1200)).toBeNull();
     expect(gate.accept({ g: 'wave', seq: 6 }, 1600)).toEqual({ type: 'wake' });
-    const again = createGestureGate(280);
-    expect(again.accept({ g: 'left', seq: 1 }, 1000)?.type).toBe('rotate');
-    expect(again.accept({ g: 'right', seq: 2 }, 1400)).toBeNull();
-    expect(again.accept({ g: 'right', seq: 3 }, 1800)).toBeNull();
-    expect(again.accept({ g: 'left', seq: 4 }, 2200)?.type).toBe('rotate');
+    expect(gate.accept({ g: 'right', seq: 7 }, 2000)?.type).toBe('rotate');
   });
 });

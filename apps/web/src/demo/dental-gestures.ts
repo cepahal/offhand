@@ -38,38 +38,19 @@ export function mapDentalGesture(name: GestureName): DentalGestureAction {
   }
 }
 
-const OPPOSITE: Record<GestureName, GestureName | null> = {
-  left: 'right',
-  right: 'left',
-  up: 'down',
-  down: 'up',
-  forward: 'backward',
-  backward: 'forward',
-  cw: 'ccw',
-  ccw: 'cw',
-  wave: null,
-};
-
 export interface GestureGate {
   accept(hit: { g: GestureName; seq: number }, now: number): DentalGestureAction | null;
 }
 
-/**
- * Drops a repeated sequence number, anything inside the quiet window,
- * and the opposite gesture that follows a swipe. That return stroke is how the
- * hand gets back into place, so it is not a new command.
- */
+/** Drops a repeated sequence number and any gesture that arrives inside the quiet window. */
 export function createGestureGate(debounceMs = 280): GestureGate {
   let lastSeq = -1;
   let lastAt = -Infinity;
-  let suppressed: GestureName | null = null;
   return {
     accept(hit, now) {
       if (hit.seq === lastSeq || now - lastAt < debounceMs) return null;
       lastSeq = hit.seq;
       lastAt = now;
-      if (hit.g === suppressed) return null;
-      suppressed = OPPOSITE[hit.g];
       return mapDentalGesture(hit.g);
     },
   };
