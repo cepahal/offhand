@@ -572,7 +572,7 @@ const CUE_ICON: Record<GestureCue['glyph'], () => JSX.Element> = {
   return: () => <IconArrow dir="left" size={20} />,
 };
 
-function CueView({ cue }: { cue: GestureCue }) {
+export function CueView({ cue }: { cue: GestureCue }) {
   if (cue.glyph === 'return') {
     return <p class="cue-return" role="status">{cue.label}</p>;
   }

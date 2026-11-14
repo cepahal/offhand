@@ -113,6 +113,20 @@ export function voiceInputAvailable(): boolean {
   return whisperUrl() !== '' || speechCtor() !== null;
 }
 
+/** Ask for the microphone from a click. A wave alone is not a user gesture, so Chrome will not open the mic until this has succeeded once. */
+export async function primeMicrophone(): Promise<string | null> {
+  if (!navigator.mediaDevices?.getUserMedia) return 'This browser has no microphone.';
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+    return null;
+  } catch (err) {
+    const name = err instanceof DOMException ? err.name : '';
+    if (name === 'NotAllowedError' || name === 'SecurityError') return 'Microphone permission was denied.';
+    return 'The microphone could not be opened.';
+  }
+}
+
 export interface HoldSession {
   stop(): void;
 }
@@ -134,7 +148,194 @@ export function beginHold(handlers: { onInterim: (text: string) => void; onText:
 export function beginOpenMic(handlers: { onInterim: (text: string) => void; onText: (text: string) => void; onError: (message: string) => void }): HoldSession {
   const url = whisperUrl();
   if (url) return beginWhisperLoop(url, handlers);
-  return beginContinuousSpeech(handlers);
+  return beginSpeechOrHub(handlers);
+}
+
+/**
+ * Chrome speech and the hub's Whisper route listen side by side. Some Chrome builds accept the
+ * audio and never return words, so the hub copy is the backstop. The first source to return
+ * words is used for the rest of the session and the other one is stopped.
+ */
+function beginSpeechOrHub(handlers: { onInterim: (text: string) => void; onText: (text: string) => void; onError: (message: string) => void }): HoldSession {
+  let winner: 'speech' | 'hub' | null = null;
+  let speechDown = false;
+  let hubDown = false;
+  let speech: HoldSession | null = null;
+  let hub: HoldSession | null = null;
+  const take = (source: 'speech' | 'hub'): boolean => {
+    if (winner && winner !== source) return false;
+    if (!winner) {
+      winner = source;
+      if (source === 'speech') hub?.stop();
+      else speech?.stop();
+    }
+    return true;
+  };
+  speech = beginContinuousSpeech({
+    onInterim(text) {
+      if (take('speech')) handlers.onInterim(text);
+    },
+    onText(text) {
+      if (take('speech')) handlers.onText(text);
+    },
+    onError(message) {
+      if (/denied/i.test(message)) {
+        handlers.onError(message);
+        return;
+      }
+      speechDown = true;
+      if (hubDown && winner !== 'hub') handlers.onError(message);
+    },
+  });
+  hub = listenOnHub({
+    onText(text) {
+      if (take('hub')) handlers.onText(text);
+    },
+    onError(message) {
+      hubDown = true;
+      if (speechDown && winner !== 'speech') handlers.onError(message);
+    },
+  });
+  return {
+    stop() {
+      speech?.stop();
+      hub?.stop();
+    },
+  };
+}
+
+const HUB_RATE = 16000;
+const SPEECH_END_MS = 1000;
+const MIN_SPEECH_MS = 300;
+const MAX_UTTERANCE_MS = 12000;
+const PRE_ROLL_MS = 300;
+
+/** Records whole utterances (energy gate over an adaptive noise floor) and sends each to the hub. */
+function listenOnHub(handlers: { onText: (text: string) => void; onError: (message: string) => void }): HoldSession {
+  let stopped = false;
+  let release: (() => void) | null = null;
+  void navigator.mediaDevices
+    ?.getUserMedia({ audio: true })
+    .then((stream) => {
+      if (stopped) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      const context = new AudioContext();
+      const source = context.createMediaStreamSource(stream);
+      const processor = context.createScriptProcessor(2048, 1, 1);
+      const mute = context.createGain();
+      mute.gain.value = 0;
+      const blockMs = (2048 / context.sampleRate) * 1000;
+      const preRoll: Float32Array[] = [];
+      let take: Float32Array[] = [];
+      let floor = 0.004;
+      let speaking = false;
+      let voicedMs = 0;
+      let quietMs = 0;
+      let lengthMs = 0;
+      const flush = () => {
+        const chunks = take;
+        const voiced = voicedMs;
+        take = [];
+        speaking = false;
+        voicedMs = 0;
+        quietMs = 0;
+        lengthMs = 0;
+        if (voiced < MIN_SPEECH_MS) return;
+        const wav = encodeWav(downsample(chunks, context.sampleRate, HUB_RATE), HUB_RATE);
+        void transcribeOnHub(wav)
+          .then((text) => {
+            if (!stopped && text.trim()) handlers.onText(text.trim());
+          })
+          .catch((err: Error) => {
+            if (!stopped) handlers.onError(err.message);
+          });
+      };
+      processor.onaudioprocess = (event) => {
+        if (stopped) return;
+        const block = new Float32Array(event.inputBuffer.getChannelData(0));
+        let sum = 0;
+        for (let i = 0; i < block.length; i++) sum += block[i]! * block[i]!;
+        const rms = Math.sqrt(sum / block.length);
+        const loud = rms > Math.max(0.012, floor * 3);
+        if (!speaking) {
+          floor = floor * 0.95 + Math.min(rms, 0.05) * 0.05;
+          preRoll.push(block);
+          while (preRoll.length * blockMs > PRE_ROLL_MS) preRoll.shift();
+          if (!loud) return;
+          speaking = true;
+          take = preRoll.splice(0);
+        }
+        take.push(block);
+        lengthMs += blockMs;
+        if (loud) {
+          voicedMs += blockMs;
+          quietMs = 0;
+        } else {
+          quietMs += blockMs;
+        }
+        if (quietMs >= SPEECH_END_MS || lengthMs >= MAX_UTTERANCE_MS) flush();
+      };
+      source.connect(processor);
+      processor.connect(mute);
+      mute.connect(context.destination);
+      release = () => {
+        processor.onaudioprocess = null;
+        processor.disconnect();
+        source.disconnect();
+        mute.disconnect();
+        stream.getTracks().forEach((track) => track.stop());
+        void context.close();
+      };
+    })
+    .catch(() => {
+      if (!stopped) handlers.onError('Microphone permission was denied.');
+    });
+  return {
+    stop() {
+      stopped = true;
+      release?.();
+      release = null;
+    },
+  };
+}
+
+function downsample(chunks: Float32Array[], from: number, to: number): Float32Array {
+  const length = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const merged = new Float32Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+  if (from <= to) return merged;
+  const ratio = from / to;
+  const out = new Float32Array(Math.floor(length / ratio));
+  for (let i = 0; i < out.length; i++) {
+    const start = Math.floor(i * ratio);
+    const end = Math.min(length, Math.floor((i + 1) * ratio));
+    let sum = 0;
+    for (let j = start; j < end; j++) sum += merged[j]!;
+    out[i] = sum / Math.max(1, end - start);
+  }
+  return out;
+}
+
+async function transcribeOnHub(wav: Blob): Promise<string> {
+  const bytes = new Uint8Array(await wav.arrayBuffer());
+  let binary = '';
+  const step = 0x8000;
+  for (let index = 0; index < bytes.length; index += step) binary += String.fromCharCode(...bytes.subarray(index, index + step));
+  const response = await fetch('/api/voice/transcribe', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ audioBase64: btoa(binary) }),
+  });
+  if (response.status === 503) throw new Error('Voice transcription is not configured on the hub.');
+  if (!response.ok) throw new Error('Voice transcription failed.');
+  const body = (await response.json()) as { text?: unknown };
+  return typeof body.text === 'string' ? body.text : '';
 }
 
 function beginWebSpeech(handlers: { onInterim: (text: string) => void; onText: (text: string) => void; onError: (message: string) => void }): HoldSession {

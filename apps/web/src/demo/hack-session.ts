@@ -203,6 +203,8 @@ export function useHackAssistant(handlers: HackHandlers): {
       setPhase('Awaiting Confirmation');
       setActivity('Hover to confirm');
       setCommand(`${label}. Hover to confirm.`);
+      if (next.command === 'message_patient') setPatientMessage('Prepared');
+      if (next.command === 'message_hospital') setHospitalMessage('Prepared');
       return;
     }
     setPending(null);
@@ -253,8 +255,7 @@ export function useHackAssistant(handlers: HackHandlers): {
           setActivity('Preparing');
           const local = interpretCommand(heard);
           const fromModel = raw ? commandFromModel(raw) : null;
-          const bite = ['open_bite', 'simulate_bite', 'show_bone', 'show_analysis', 'show_adjustments', 'replay_bite'].includes(local.command);
-          stage(bite ? local : fromModel && fromModel.command !== 'ask' ? fromModel : local);
+          stage(local.command !== 'ask' ? local : fromModel && fromModel.command !== 'ask' ? fromModel : local);
         })
         .catch(() => {
           setPhase('Preparing');
@@ -288,8 +289,11 @@ export function useHackAssistant(handlers: HackHandlers): {
       onError(message) {
         stopMic();
         setPhase('Idle');
-        setActivity(message);
-        setCommand('Hover, then speak.');
+        const shown = /denied|not-allowed/i.test(message)
+          ? 'Microphone access is blocked. Allow it in the browser’s site settings, then hover again.'
+          : message;
+        setActivity(shown);
+        setCommand(shown);
       },
     });
   }

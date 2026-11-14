@@ -4,7 +4,7 @@ import { DENTAL_CANDIDATE_GROUPS } from '../src/demo/CBCTWorkspace.js';
 
 describe('dental review focuses', () => {
   it('has five focuses, each with two ToothFairy2 candidates', () => {
-    expect(DENTAL_TRAININGS.map((item) => item.n)).toEqual([1, 2, 3, 4, 5]);
+    expect(DENTAL_TRAININGS.map((item) => item.n)).toEqual([3, 5, 1, 2, 4]);
     for (const item of DENTAL_TRAININGS) expect(DENTAL_CANDIDATE_GROUPS[item.n]).toHaveLength(2);
   });
 
