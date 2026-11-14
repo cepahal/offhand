@@ -2,8 +2,11 @@ import type { FastifyInstance } from 'fastify';
 import type { Bus } from './bus/bus.js';
 import type { HubConfig } from './config.js';
 import type { Logger } from './log/logger.js';
+import { createAiModule } from './ai/module.js';
 import { createCasepackModule } from './casepacks/module.js';
 import { createGestureModule } from './gesture/module.js';
+import { createIntegrationsModule } from './integrations/module.js';
+import { createMessagingModule } from './messaging/module.js';
 
 export type ModuleStatus = 'mock' | 'live' | 'error';
 
@@ -37,5 +40,13 @@ export interface HubModule {
 
 /** Module registry. Order matters only for route registration and shutdown. */
 export function createModules(ctx: HubContext): HubModule[] {
-  return [createCasepackModule(ctx), createGestureModule(ctx)];
+  const { bus, log, cfg } = ctx;
+  const messaging = createMessagingModule({ logger: log, bus, casepackDir: cfg.casepackDir, snapshotDir: cfg.snapshotDir });
+  return [
+    createCasepackModule(ctx),
+    createGestureModule(ctx),
+    createAiModule({ logger: log, bus }),
+    messaging,
+    createIntegrationsModule({ logger: log, bus, shares: messaging }),
+  ];
 }

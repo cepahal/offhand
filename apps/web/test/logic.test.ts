@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import type { CaseFinding, CaseLayer } from '@offhand/contracts';
+import type { CaseFinding, CaseLayer } from '@hoverscan/contracts';
+import { readFileSync } from 'node:fs';
 import {
+  PLANE_AXIS,
   RAS_TO_THREE,
+  caseBanner,
   clipHeight,
   cycleFinding,
+  indexToScrub,
+  layerAtTimepoint,
   nextPeel,
+  orderedTimepoints,
+  volumeForTimepoint,
   peelGroups,
   rasAxisToThree,
   rasToThree,
@@ -105,5 +112,69 @@ describe('app config', () => {
     expect(c.scrub.target).toBe('timepoint');
     expect(c.scrub.axis).toBe('S');
     expect(c.scrub.label).toBe('Visit');
+  });
+});
+
+describe('timepoints (longitudinal cases)', () => {
+  const tps = [
+    { id: 'visit-02', label: 'Visit 2', order: 2 },
+    { id: 'visit-01', label: 'Visit 1', order: 1 },
+    { id: 'visit-03', label: 'Visit 3', order: 3 },
+  ];
+  const vol = (id: string, timepointId?: string) => ({
+    id,
+    file: `volumes/${id}.nii.gz`,
+    modality: 'MR',
+    sequence: 'FLAIR',
+    ...(timepointId ? { timepointId } : {}),
+  });
+
+  it('orders timepoints by their order field', () => {
+    expect(orderedTimepoints({ timepoints: tps }).map((t) => t.id)).toEqual(['visit-01', 'visit-02', 'visit-03']);
+    expect(orderedTimepoints({})).toEqual([]);
+  });
+
+  it('shows a visit-tied layer only at its visit; untied layers always', () => {
+    const lesion = { ...layer('lesions-r1-visit-02', 1), timepointId: 'visit-02' };
+    expect(layerAtTimepoint(lesion, 'visit-02')).toBe(true);
+    expect(layerAtTimepoint(lesion, 'visit-01')).toBe(false);
+    expect(layerAtTimepoint(layer('brain', 0), 'visit-01')).toBe(true);
+    expect(layerAtTimepoint(lesion, undefined)).toBe(true);
+  });
+
+  it('picks the slice volume of the selected visit', () => {
+    const m = { timepoints: tps, volumes: [vol('flair-visit-01', 'visit-01'), vol('flair-visit-02', 'visit-02')] };
+    expect(volumeForTimepoint(m, 1)?.id).toBe('flair-visit-02');
+    expect(volumeForTimepoint(m, 0)?.id).toBe('flair-visit-01');
+    expect(volumeForTimepoint(m, 2)?.id).toBe('flair-visit-01'); // no volume for visit 3: first one
+    expect(volumeForTimepoint({ volumes: [] }, 0)).toBeUndefined();
+  });
+
+  it('scrub and timepoint index round-trip, so gesture and slider agree', () => {
+    for (let i = 0; i < 5; i++) expect(scrubToIndex(indexToScrub(i, 5), 5)).toBe(i);
+    expect(indexToScrub(3, 1)).toBe(0);
+  });
+
+  it('slice planes step along the RAS voxel axes', () => {
+    expect(PLANE_AXIS).toEqual({ sagittal: 0, coronal: 1, axial: 2 });
+  });
+});
+
+describe('banners', () => {
+  it('real case packs have no banner; mocks and the test pattern keep theirs', () => {
+    expect(caseBanner({ app: 'neuroview' }, false)).toBeNull();
+    expect(caseBanner({ app: 'mock' }, true)).toBe('MOCK — NOT ANATOMY');
+    expect(caseBanner({ app: 'test-pattern' }, false)).toBe('TEST PATTERN — NOT ANATOMY');
+    expect(caseBanner(null, false)).toBeNull();
+  });
+});
+
+describe('neuroview app config', () => {
+  it('scrubs timepoints and carries the dataset credit', () => {
+    const raw: unknown = JSON.parse(readFileSync(new URL('../../../config/apps/neuroview.json', import.meta.url), 'utf8'));
+    const c = parseAppConfig(raw);
+    expect(c.scrub.target).toBe('timepoint');
+    expect(c.credit).toContain('ISBI 2015');
+    expect(c.credit).toContain('not for clinical or diagnostic use');
   });
 });

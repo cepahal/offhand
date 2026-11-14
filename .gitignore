@@ -8,6 +8,8 @@ snapshots/
 .env
 .env.*
 !.env.example
+# Personal config overrides (may hold keys or patient mappings)
+config/*.local.json
 
 # Python
 __pycache__/
@@ -18,10 +20,14 @@ __pycache__/
 # Large / licensed data never goes in git (dataset licences forbid redistribution in several cases)
 data/
 ToothFairy2_selected_candidates/
+data/gesture-samples/
 casepacks/**/*.glb
 casepacks/**/*.nii
 casepacks/**/*.nii.gz
 casepacks/**/*.dcm
+# ISBI 2015 licence: no redistribution of the data or anything derived from it, so the whole
+# NeuroView case (meshes, volumes, measured manifest) stays local. Rebuild: pnpm build:neuroview
+casepacks/neuroview/
 # ...except the generated TEST PATTERN pack, which is synthetic geometry (not anatomy)
 !casepacks/test-pattern/**
 # ...and the ToothFairy2 dental packs (CC BY-SA 4.0: redistribution allowed with credit + same licence;

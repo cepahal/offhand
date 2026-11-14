@@ -19,14 +19,18 @@ import type {
   ViewerCommand,
   ViewerState,
   ViewSnapshot,
-} from '@offhand/contracts';
+} from '@hoverscan/contracts';
 import type { AppConfig } from './appConfig.js';
+import { PALETTE, SURROUND_OPACITY, layerRole, roleColor } from './palette.js';
 import {
   RAS_TO_THREE,
   clamp,
   clipHeight,
   cycleFinding,
+  indexToScrub,
+  layerAtTimepoint,
   nextPeel,
+  orderedTimepoints,
   peelGroups,
   rasAxisToThree,
   scrubToIndex,
@@ -57,6 +61,9 @@ interface LayerRt {
   def: CaseLayer;
   root: THREE.Object3D;
   materials: THREE.MeshStandardMaterial[];
+  outlines: THREE.LineBasicMaterial[];
+  /** Opacity restored by reset. Skull uses the palette, not the case file. */
+  baseOpacity: number;
   /** User opacity (set_layer). */
   opacity: number;
   /** User visibility (set_layer / peel). */
@@ -124,7 +131,7 @@ export class Viewer {
     this.patient.add(this.markers);
     this.scene.add(this.patient);
 
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x404050, 1.1));
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x40403d, 1.1));
     const key = new THREE.DirectionalLight(0xffffff, 1.6);
     key.position.set(0.5, 1, 1);
     this.camera.add(key); // light follows the camera, so the side you look at is always lit
@@ -147,6 +154,7 @@ export class Viewer {
   }
 
   dispose(): void {
+    this.loadToken += 1; // invalidate any GLTF loads still in flight before releasing the renderer
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     this.clear();
@@ -203,6 +211,7 @@ export class Viewer {
       mode: 'orbit',
       focusedFindingId: null,
     };
+    for (const l of this.layers) this.applyLayer(l);
     this.snapCamera(this.homeTarget, this.homeSph);
     this.updateClip();
     this.updateMarkers();
@@ -211,35 +220,48 @@ export class Viewer {
   }
 
   private adoptLayer(def: CaseLayer, root: THREE.Object3D, maxPeel: number): LayerRt {
+    const role = layerRole(def.label, def.id);
+    const color = roleColor(role, def.color);
+    const flat = role !== 'other';
+    const dentalCase = this.loaded?.manifest.app === 'dental';
+    const baseOpacity = role === 'skull' && !dentalCase ? PALETTE.skullOpacity : def.defaultOpacity;
     const materials: THREE.MeshStandardMaterial[] = [];
+    const outlines: THREE.LineBasicMaterial[] = [];
     root.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
       const geom = mesh.geometry as THREE.BufferGeometry;
       if (!geom.getAttribute('normal')) geom.computeVertexNormals();
-      const hasColors = !!geom.getAttribute('color');
+      const useVertex = !!geom.getAttribute('color') && !flat && !dentalCase;
       const old = mesh.material as THREE.Material | THREE.Material[];
       (Array.isArray(old) ? old : [old]).forEach((m) => m.dispose());
       const m = new THREE.MeshStandardMaterial({
-        color: hasColors ? 0xffffff : new THREE.Color(def.color),
-        vertexColors: hasColors,
+        color: useVertex ? 0xffffff : new THREE.Color(color),
+        vertexColors: useVertex,
         roughness: 0.55,
         metalness: 0.05,
         side: THREE.DoubleSide,
         clippingPlanes: [this.clipPlane],
-        emissive: new THREE.Color(def.color),
-        emissiveIntensity: 0,
+        emissive: new THREE.Color(color),
+        emissiveIntensity: role === 'highlight' ? 0.35 : 0,
       });
       mesh.material = m;
       // Transparent layers: draw inner (higher peelOrder) first, outer last.
       mesh.renderOrder = maxPeel - def.peelOrder;
       materials.push(m);
+      if (role === 'highlight') {
+        const line = new THREE.LineBasicMaterial({ color: new THREE.Color(PALETTE.highlight), transparent: true });
+        mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geom, 20), line));
+        outlines.push(line);
+      }
     });
     const rt: LayerRt = {
       def,
       root,
       materials,
-      opacity: def.defaultOpacity,
+      outlines,
+      baseOpacity,
+      opacity: baseOpacity,
       visible: true,
       shown: 1,
       highlight: false,
@@ -254,9 +276,10 @@ export class Viewer {
       this.patient.remove(l.root);
       l.root.traverse((o) => {
         const mesh = o as THREE.Mesh;
-        if (mesh.isMesh) mesh.geometry.dispose();
+        if (mesh.isMesh || (o as THREE.LineSegments).isLineSegments) mesh.geometry.dispose();
       });
       l.materials.forEach((m) => m.dispose());
+      l.outlines.forEach((m) => m.dispose());
     }
     this.layers = [];
     this.peeled = [];
@@ -300,8 +323,10 @@ export class Viewer {
         return true;
       case 'timepoint': {
         const n = this.loaded?.manifest.timepoints?.length ?? 1;
-        const i = cmd.index ?? this.view.timepoint + (cmd.delta ?? 0);
-        this.setTimepoint(clamp(Math.round(i), 0, Math.max(0, n - 1)));
+        const i = clamp(Math.round(cmd.index ?? this.view.timepoint + (cmd.delta ?? 0)), 0, Math.max(0, n - 1));
+        // Keep the scrub bar on the same visit, so the gesture and the slider agree.
+        if (this.loaded?.app.scrub.target === 'timepoint') this.view.scrub = indexToScrub(i, n);
+        this.setTimepoint(i);
         return true;
       }
       case 'focus_finding':
@@ -381,8 +406,10 @@ export class Viewer {
   }
 
   private applyLayer(l: LayerRt): void {
-    const o = l.opacity * l.shown;
+    const o = layerAtTimepoint(l.def, this.timepointId()) ? l.opacity * l.shown : 0;
     const transparent = o < 0.999;
+    const role = layerRole(l.def.label, l.def.id);
+    const glow = role === 'highlight' ? (l.highlight ? 0.7 : 0.35) : l.highlight ? 0.45 : 0;
     for (const m of l.materials) {
       if (m.transparent !== transparent) {
         m.transparent = transparent;
@@ -390,8 +417,9 @@ export class Viewer {
       }
       m.opacity = o;
       m.depthWrite = !transparent;
-      m.emissiveIntensity = l.highlight ? 0.45 : 0;
+      m.emissiveIntensity = glow;
     }
+    for (const line of l.outlines) line.opacity = Math.min(1, o);
     l.root.visible = o > 0.003;
     this.dirty = true;
   }
@@ -423,26 +451,39 @@ export class Viewer {
 
   private setTimepoint(i: number): void {
     this.view.timepoint = i;
+    for (const l of this.layers) this.applyLayer(l);
     this.updateMarkers();
     this.changed();
+  }
+
+  private timepointId(): string | undefined {
+    return this.loaded ? orderedTimepoints(this.loaded.manifest)[this.view.timepoint]?.id : undefined;
   }
 
   private focus(findingId: string): void {
     const m = this.loaded?.manifest;
     if (!m) return;
-    const tp = m.timepoints?.slice().sort((a, b) => a.order - b.order)[this.view.timepoint]?.id;
+    const tp = this.timepointId();
     const id =
       findingId === 'next' || findingId === 'prev'
         ? cycleFinding(m.findings, this.view.focusedFindingId, findingId, tp)
         : findingId;
     const f = m.findings.find((x) => x.id === id);
     if (!f) return this.onInfo(m.findings.length ? `No finding "${findingId}".` : 'This case has no findings.');
+    if (f.timepointId && f.timepointId !== tp) {
+      const i = orderedTimepoints(m).findIndex((t) => t.id === f.timepointId);
+      if (i >= 0) {
+        if (this.loaded?.app.scrub.target === 'timepoint') this.view.scrub = indexToScrub(i, m.timepoints?.length ?? 1);
+        this.setTimepoint(i);
+      }
+    }
     this.view.focusedFindingId = f.id;
     this.goalTarget.copy(this.patient.localToWorld(new THREE.Vector3(...f.center)));
     if (!this.tweening('camera')) this.goalSph.setFromVector3(this.camera.position.clone().sub(this.controls.target));
     const want = Math.max(f.radiusMm * 9, this.homeSph.radius * 0.35);
     this.goalSph.radius = clamp(want, this.controls.minDistance, this.controls.maxDistance);
     this.fly(MOVE_MS * 1.6);
+    this.fadeSurrounding();
     this.updateMarkers();
     this.changed();
   }
@@ -451,7 +492,7 @@ export class Viewer {
     this.peeled = [];
     for (const l of this.layers) {
       const from = l.opacity;
-      const to = l.def.defaultOpacity;
+      const to = l.baseOpacity;
       this.animate(`opacity:${l.def.id}`, FADE_MS, (e) => {
         l.opacity = lerp(from, to, e);
         this.applyLayer(l);
@@ -490,6 +531,7 @@ export class Viewer {
       mode: s.mode,
       focusedFindingId: s.focusedFindingId,
     };
+    for (const l of this.layers) this.applyLayer(l);
     this.updateClip();
     this.updateMarkers();
     this.changed();
@@ -590,7 +632,7 @@ export class Viewer {
     const plane = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.MeshBasicMaterial({
-        color: 0x00ffff,
+        color: 0xc8a96f,
         transparent: true,
         opacity: 0.1,
         side: THREE.DoubleSide,
@@ -599,7 +641,7 @@ export class Viewer {
     );
     const edge = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, 1)),
-      new THREE.LineBasicMaterial({ color: 0x00ffff }),
+      new THREE.LineBasicMaterial({ color: 0xc8a96f }),
     );
     plane.renderOrder = edge.renderOrder = 900;
     g.add(plane, edge);
@@ -646,7 +688,7 @@ export class Viewer {
       const m = new THREE.Mesh(
         new THREE.SphereGeometry(Math.max(f.radiusMm, 1), 20, 14),
         new THREE.MeshBasicMaterial({
-          color: 0xffff00,
+          color: new THREE.Color(PALETTE.highlight),
           wireframe: true,
           transparent: true,
           opacity: 0.35,
@@ -661,9 +703,21 @@ export class Viewer {
     }
   }
 
+  /** Tissue around a finding drops to 40%. The finding itself stays. */
+  private fadeSurrounding(): void {
+    for (const l of this.layers) {
+      if (layerRole(l.def.label, l.def.id) === 'highlight') continue;
+      const from = l.opacity;
+      const to = Math.min(from, SURROUND_OPACITY);
+      this.animate(`opacity:${l.def.id}`, FADE_MS, (e) => {
+        l.opacity = lerp(from, to, e);
+        this.applyLayer(l);
+      });
+    }
+  }
+
   private updateMarkers(): void {
-    const tps = this.loaded?.manifest.timepoints?.slice().sort((a, b) => a.order - b.order);
-    const tp = tps?.[this.view.timepoint]?.id;
+    const tp = this.timepointId();
     for (const o of this.markers.children) {
       const m = o as THREE.Mesh;
       const mat = m.material as THREE.MeshBasicMaterial;

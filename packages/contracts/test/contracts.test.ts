@@ -3,8 +3,10 @@ import {
   BusEnvelope,
   CasePackManifest,
   GestureEvent,
+  VerifiedText,
   ViewerCommand,
   ViewerState,
+  cameraOrbit,
   emptyViewerState,
   makeCommand,
 } from '../src/index.js';
@@ -46,6 +48,64 @@ describe('ViewerState / BusEnvelope', () => {
   });
 });
 
+describe('1.1.0 additions', () => {
+  const verified = {
+    text: 'Test marker placed at the origin offset.',
+    status: 'verified',
+    findings: [{ type: 'VALID', detail: 'ok' }],
+    policyId: 'chairside',
+    checkedAt: '2026-11-11T22:00:00Z',
+  };
+
+  it('1.0.0 data still validates: camera without orbit fields, bookmark without snapshotUrl, no checker', () => {
+    const state = {
+      ...emptyViewerState(),
+      app: 'test-pattern',
+      caseId: 'tp-001',
+      bookmarks: [{ id: 'b1', label: 'View 1', state: { ...emptyViewerState(), bookmarks: undefined } }],
+    };
+    expect(ViewerState.safeParse(state).success).toBe(true);
+    expect(VerifiedText.safeParse(verified).success).toBe(true);
+  });
+
+  it('accepts the optional camera orbit fields and checker', () => {
+    const state = { ...emptyViewerState(), camera: { ...emptyViewerState().camera, azimuth: 0, elevation: 0, distance: 300 } };
+    expect(ViewerState.safeParse(state).success).toBe(true);
+    expect(VerifiedText.safeParse({ ...verified, checker: 'mock' }).success).toBe(true);
+  });
+
+  it('BusEnvelope carries verified text, and still rejects an unknown channel', () => {
+    expect(BusEnvelope.safeParse({ ch: 'verified', ev: verified }).success).toBe(true);
+    expect(BusEnvelope.safeParse({ ch: 'verified', ev: { ...verified, status: 'approved' } }).success).toBe(false);
+    expect(BusEnvelope.safeParse({ ch: 'telepathy', ev: verified }).success).toBe(false);
+  });
+});
+
+describe('cameraOrbit', () => {
+  // Viewer world: three.x = -R, three.y = S, three.z = A.
+  it.each([
+    [[0, 0, 300], 0, 0],
+    [[-300, 0, 0], 90, 0],
+    [[0, 0, -300], 180, 0],
+    [[300, 0, 0], 270, 0],
+    [[0, 300, 0], 0, 90],
+    [[0, -300, 0], 0, -90],
+  ] as const)('camera at %j: azimuth %d, elevation %d', (position, azimuth, elevation) => {
+    expect(cameraOrbit([...position], [0, 0, 0])).toEqual({ azimuth, elevation, distance: 300 });
+  });
+
+  it('is relative to the target and handles a camera on its target', () => {
+    expect(cameraOrbit([10, 20, 130], [10, 20, 30])).toEqual({ azimuth: 0, elevation: 0, distance: 100 });
+    expect(cameraOrbit([1, 2, 3], [1, 2, 3])).toEqual({ azimuth: 0, elevation: 0, distance: 0 });
+    expect(cameraOrbit([0, 100, 100], [0, 0, 0]).elevation).toBe(45);
+  });
+
+  it('agrees with the default viewer camera (in front of the patient)', () => {
+    const { position, target } = emptyViewerState().camera;
+    expect(cameraOrbit(position, target)).toEqual({ azimuth: 0, elevation: 0, distance: 300 });
+  });
+});
+
 describe('CasePackManifest', () => {
   const ok = {
     schema: 1,
@@ -67,6 +127,16 @@ describe('CasePackManifest', () => {
 
   it('accepts a minimal manifest', () => {
     expect(CasePackManifest.safeParse(ok).success).toBe(true);
+  });
+
+  it('1.2.0: a layer may name its timepoint; layers without one still validate', () => {
+    const longitudinal = {
+      ...ok,
+      timepoints: [{ id: 'visit-01', label: 'Visit 1', order: 1 }],
+      layers: [...ok.layers, { ...ok.layers[0], id: 'b', file: 'layers/b.glb', timepointId: 'visit-01' }],
+    };
+    expect(CasePackManifest.safeParse(longitudinal).success).toBe(true);
+    expect(CasePackManifest.safeParse({ ...ok, layers: [{ ...ok.layers[0], timepointId: 3 }] }).success).toBe(false);
   });
 
   it('rejects path traversal in layer files', () => {

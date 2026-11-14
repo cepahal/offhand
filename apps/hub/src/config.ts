@@ -8,6 +8,27 @@ export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', 
 const envFile = join(REPO_ROOT, '.env');
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
+export type RunMode = 'mock' | 'live';
+
+/**
+ * HOVERSCAN_RUN is set by the root scripts, never by .env: `pnpm dev` = mock (offline, no
+ * credentials, whatever .env says), `pnpm start:live` and `pnpm e2e:live` = live.
+ * Unset (tests, `pnpm start`) leaves each module's own *_MODE setting alone.
+ */
+export const RUN_MODE: RunMode | undefined =
+  process.env.HOVERSCAN_RUN === 'live' ? 'live' : process.env.HOVERSCAN_RUN === 'mock' ? 'mock' : undefined;
+
+if (RUN_MODE === 'mock') {
+  process.env.AI_MODE = 'mock';
+  process.env.PHOTON_MODE = 'mock';
+  for (const k of Object.keys(process.env)) {
+    if (/^INTEG_[A-Z]+$/.test(k) && process.env[k]?.trim().toLowerCase() === 'live') process.env[k] = 'mock';
+  }
+} else if (RUN_MODE === 'live') {
+  process.env.AI_MODE = 'live';
+  process.env.PHOTON_MODE = 'live';
+}
+
 const str = (name: string, fallback: string): string => process.env[name]?.trim() || fallback;
 const int = (name: string, fallback: number): number => {
   const raw = process.env[name];

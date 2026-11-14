@@ -1,7 +1,7 @@
 {
-  "$id": "offhand/ViewerState.json",
+  "$id": "hoverscan/ViewerState.json",
   "title": "ViewerState",
-  "x-contracts-version": "1.0.0",
+  "x-contracts-version": "1.2.0",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
@@ -44,7 +44,7 @@
           "items": false,
           "minItems": 3,
           "maxItems": 3,
-          "description": "Camera position (viewer world coordinates)."
+          "description": "Camera position (viewer world coordinates: three.js, x = -R, y = S, z = A)."
         },
         "target": {
           "type": "array",
@@ -81,6 +81,19 @@
           "minItems": 3,
           "maxItems": 3,
           "description": "Camera up vector."
+        },
+        "azimuth": {
+          "description": "Optional (additive, 1.1.0), derived from position/target by cameraOrbit(): degrees around the patient, 0 = looking from anterior, 90 = from the patient's right.",
+          "type": "number"
+        },
+        "elevation": {
+          "description": "Optional (additive, 1.1.0): degrees above the axial plane, +90 = looking from superior.",
+          "type": "number"
+        },
+        "distance": {
+          "description": "Optional (additive, 1.1.0): position-to-target distance, mm.",
+          "type": "number",
+          "minimum": 0
         }
       },
       "required": [
@@ -88,7 +101,7 @@
         "target",
         "up"
       ],
-      "description": "Camera pose."
+      "description": "Camera pose. position/target/up are authoritative; azimuth/elevation/distance are derived."
     },
     "layers": {
       "type": "array",
@@ -230,7 +243,7 @@
                     "items": false,
                     "minItems": 3,
                     "maxItems": 3,
-                    "description": "Camera position (viewer world coordinates)."
+                    "description": "Camera position (viewer world coordinates: three.js, x = -R, y = S, z = A)."
                   },
                   "target": {
                     "type": "array",
@@ -267,6 +280,19 @@
                     "minItems": 3,
                     "maxItems": 3,
                     "description": "Camera up vector."
+                  },
+                  "azimuth": {
+                    "description": "Optional (additive, 1.1.0), derived from position/target by cameraOrbit(): degrees around the patient, 0 = looking from anterior, 90 = from the patient's right.",
+                    "type": "number"
+                  },
+                  "elevation": {
+                    "description": "Optional (additive, 1.1.0): degrees above the axial plane, +90 = looking from superior.",
+                    "type": "number"
+                  },
+                  "distance": {
+                    "description": "Optional (additive, 1.1.0): position-to-target distance, mm.",
+                    "type": "number",
+                    "minimum": 0
                   }
                 },
                 "required": [
@@ -274,7 +300,7 @@
                   "target",
                   "up"
                 ],
-                "description": "Camera pose."
+                "description": "Camera pose. position/target/up are authoritative; azimuth/elevation/distance are derived."
               },
               "layers": {
                 "type": "array",

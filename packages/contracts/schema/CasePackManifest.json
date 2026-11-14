@@ -1,7 +1,7 @@
 {
-  "$id": "offhand/CasePackManifest.json",
+  "$id": "hoverscan/CasePackManifest.json",
   "title": "CasePackManifest",
-  "x-contracts-version": "1.0.0",
+  "x-contracts-version": "1.2.0",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
@@ -111,6 +111,10 @@
             "type": "string",
             "const": "surface",
             "description": "Layer kind. Only surfaces for now."
+          },
+          "timepointId": {
+            "description": "Additive 1.2.0. Timepoint this layer belongs to; shown only at that timepoint. Absent = all.",
+            "type": "string"
           }
         },
         "required": [

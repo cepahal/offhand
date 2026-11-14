@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { CasePackManifest } from '@offhand/contracts';
+import { CasePackManifest } from '@hoverscan/contracts';
 import { buildMock, MOCKS, mockSource, MOCK_APP } from '../src/mocks/mockCases.js';
 
 describe('frontend mocks', () => {

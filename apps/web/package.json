@@ -2,7 +2,7 @@
   "name": "@offhand/web",
   "version": "0.1.0",
   "private": true,
-  "description": "offhand viewer: Win95-style kiosk page with a three.js 3D viewport.",
+  "description": "offhand CBCT review workspace with Three.js and orthogonal scan views.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,14 +12,17 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@offhand/contracts": "workspace:*",
+    "@hoverscan/contracts": "workspace:*",
+    "@niivue/niivue": "^0.69.0",
     "preact": "^11.2.0",
     "three": "^0.187.0"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",
     "@preact/preset-vite": "^2.10.6",
+    "@tailwindcss/vite": "^4.3.5",
     "@types/three": "^0.187.0",
+    "tailwindcss": "^4.3.5",
     "typescript": "~6.0.3",
     "vite": "^8.3.7",
     "vitest": "^5.1.0"

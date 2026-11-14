@@ -1,0 +1,6 @@
+{
+  "$comment": "Copy to config/patients.local.json (git-ignored). Maps an opted-in recipient's rcp_ ref to an Open Dental PatNum. Never put names or phone numbers here.",
+  "patients": {
+    "rcp_example000000": 0
+  }
+}

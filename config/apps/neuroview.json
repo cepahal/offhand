@@ -1,0 +1,5 @@
+{
+  "title": "NeuroView",
+  "scrub": { "target": "timepoint", "axis": "S", "label": "Visit (scrub)" },
+  "credit": "Data: ISBI 2015 Longitudinal MS Lesion Segmentation Challenge, IACL, Johns Hopkins University (Carass et al., NeuroImage 148:77-102, 2017). For research and education only; not for clinical or diagnostic use."
+}

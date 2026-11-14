@@ -8,6 +8,7 @@
  *                 "slice"     move the 2D slice index (slice panel)
  *                 "motion"    a motion supplied in code by the case itself (LoadedCase.onScrub).
  *                             Frontend mocks only, so it is never read from config files.
+ *   credit        dataset credit shown on screen (viewport and slice panel) for this app's cases.
  */
 import type { RasAxis } from './logic.js';
 
@@ -16,6 +17,7 @@ export type ScrubTarget = 'clip' | 'timepoint' | 'slice' | 'motion';
 export interface AppConfig {
   title?: string;
   scrub: { target: ScrubTarget; axis: RasAxis; label: string };
+  credit?: string;
 }
 
 const DEFAULT: AppConfig = { scrub: { target: 'clip', axis: 'S', label: 'Clip' } };
@@ -30,5 +32,6 @@ export function parseAppConfig(raw: unknown): AppConfig {
   return {
     title: typeof o.title === 'string' ? o.title : undefined,
     scrub: { target, axis, label: typeof s.label === 'string' ? s.label : target },
+    credit: typeof o.credit === 'string' && o.credit.trim() ? o.credit : undefined,
   };
 }

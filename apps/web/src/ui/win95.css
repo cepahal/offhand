@@ -534,21 +534,62 @@ select {
 
 /* ---------- slice panel ---------- */
 .slicepanel {
-  height: 190px;
+  height: 260px;
   flex: none;
   display: flex;
   gap: 4px;
 }
-.slicepanel .sunken {
+.slice-controls {
+  width: 230px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.slice-planes {
+  display: flex;
+  gap: 2px;
+}
+.slice-planes button {
   flex: 1;
+  min-width: 0;
+}
+.slice-controls input[type='range'] {
+  width: 100%;
+}
+.slice-controls .credit {
+  margin-top: auto;
+  color: #404040;
+}
+.slice-view {
+  flex: 1;
+  min-width: 0;
+  position: relative;
   background: #000;
-  color: #c0c0c0;
+  padding: 2px;
+}
+.slice-view canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.slice-empty {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
+  color: #c0c0c0;
   font: 12px var(--font);
-  padding: 10px;
+}
+
+/* ---------- timepoints ---------- */
+.timepoints input[type='range'] {
+  width: 100%;
+}
+.timepoints .ticks {
+  display: flex;
+  justify-content: space-between;
 }
 
 /* ---------- dialogs ---------- */

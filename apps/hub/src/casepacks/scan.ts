@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { CasePackManifest } from '@offhand/contracts';
+import { CasePackManifest } from '@hoverscan/contracts';
 
 export interface CaseSummary {
   app: string;

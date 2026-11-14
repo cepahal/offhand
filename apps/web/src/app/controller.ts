@@ -14,11 +14,43 @@ import {
   type ViewerCommand,
   type ViewerCommandBody,
   type ViewerState,
-} from '@offhand/contracts';
+  type VoiceEvent,
+} from '@hoverscan/contracts';
 import { parseAppConfig, type AppConfig } from '../viewer/appConfig.js';
+import { observe, suggestFor, type PrefUse } from '../viewer/preferences.js';
 import type { LoadedCase, Viewer } from '../viewer/Viewer.js';
 import { api, HubClient } from './hub.js';
-import { logLine, ui } from './store.js';
+import { logLine, timelineRow, ui } from './store.js';
+import { shareRow } from './timeline.js';
+
+const PREF_KEY = 'hoverscan.view-prefs';
+const SURGEON_KEY = 'hoverscan.surgeon';
+
+function surgeonId(): string {
+  try {
+    return localStorage.getItem(SURGEON_KEY) || 'surgeon';
+  } catch {
+    return 'surgeon';
+  }
+}
+
+function readPrefs(): PrefUse[] {
+  try {
+    const raw = localStorage.getItem(PREF_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? (parsed as PrefUse[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePrefs(rows: readonly PrefUse[]): void {
+  try {
+    localStorage.setItem(PREF_KEY, JSON.stringify(rows.slice(-200)));
+  } catch {
+    // private browsing
+  }
+}
 
 /** Frontend-only case sources (e.g. labelled mocks). Key = manifest.app. */
 export interface LocalCaseSource {
@@ -43,6 +75,7 @@ export class Controller {
   private autoloaded = false;
   private seq = 0;
   private local = new Map<string, LocalCaseSource>();
+  private mySaid = new Set<string>();
 
   start(): void {
     this.hub.onStatus((s) => {
@@ -98,9 +131,26 @@ export class Controller {
     this.hub.send({ ch: 'gesture', ev });
   }
 
+  applySuggestion(): void {
+    const suggestion = ui.get().suggestion;
+    if (!suggestion) return;
+    this.dispatch({ type: 'mode', mode: suggestion.mode }, 'system');
+    this.dispatch({ type: 'slice', plane: suggestion.plane, index: 0 }, 'system');
+    ui.set({ suggestion: null });
+  }
+
+  dismissSuggestion(): void {
+    ui.set({ suggestion: null });
+  }
+
   restoreBookmark(id: string): void {
     const b = ui.get().bookmarks.find((x) => x.id === id);
     if (b && this.viewer) this.viewer.restore(b.state);
+  }
+
+  /** The viewer's slice right now (the store's copy trails it by up to 100 ms). */
+  currentSlice(): ViewerState['slice'] | null {
+    return this.viewer?.snapshot().slice ?? null;
   }
 
   highlightLayer(id: string | null): void {
@@ -116,26 +166,80 @@ export class Controller {
         void this.handleCommand(env.cmd);
         break;
       case 'state':
-        // Sent once on connect: the hub's cached state (e.g. after a page reload).
+        // The first one is the hub's cached state (e.g. after a page reload). Later ones come from
+        // hub modules; the only part the viewer adopts is pending (the share flow owns confirmFor).
+        ui.set({ pending: env.state.pending ?? {} });
         if (!this.hubState) {
           this.hubState = env.state;
           this.maybeAutoload();
         }
         break;
+      case 'verified':
+        ui.set({ verified: env.ev });
+        break;
+      case 'voice':
+        this.onVoice(env.ev);
+        break;
+      case 'share': {
+        const opts = ui.get().manifest?.share.pollOptions ?? [];
+        const row = shareRow(env.ev, Object.fromEntries(opts.map((o) => [o.id, o.label])));
+        if (row) timelineRow(row);
+        break;
+      }
       case 'gesture':
         if (env.ev.t === 'g') ui.set({ lastGesture: { name: env.ev.g, at: Date.now() } });
         break;
       case 'log': {
+        if (env.module === 'gesture.score' && env.data && typeof env.data.name === 'string' && typeof env.data.confidence === 'number') {
+          ui.set({
+            lastGesture: {
+              name: env.data.name,
+              at: Date.now(),
+              confidence: env.data.confidence,
+              accepted: env.data.accepted === true,
+            },
+          });
+          break;
+        }
         if (env.level === 'debug' && env.module !== 'gesture.fw') break;
         if (env.module === 'gesture.fw' && env.msg.startsWith('[HOVER] x=')) break;
         const level = env.level === 'error' ? 'error' : env.level === 'warn' ? 'warn' : 'info';
         logLine(`[${env.module}] ${env.msg}`, level);
+        if (env.module === 'messaging' && env.msg.startsWith('messaging:')) timelineRow({ kind: 'status', text: env.msg });
         break;
       }
       default:
-        // 'voice' and 'share' belong to the voice/share panels.
         break;
     }
+  }
+
+  /** Our own transcripts come back from the bus too; replies are everything else. */
+  private onVoice(ev: VoiceEvent): void {
+    if (ev.kind === 'transcript' && this.mySaid.delete(ev.text ?? '')) return;
+    if (ev.kind === 'tool' && ev.tool) {
+      const heard = ui.get().voiceReply?.heard;
+      ui.set({ voiceReply: { at: Date.now(), heard, text: `Done: ${ev.tool.replace(/_/g, ' ')}`, error: false } });
+      return;
+    }
+    if ((ev.kind === 'transcript' || ev.kind === 'error') && ev.text) {
+      const heard = ui.get().voiceReply?.heard;
+      ui.set({ voiceReply: { at: Date.now(), heard, text: ev.text, error: ev.kind === 'error' } });
+    }
+  }
+
+  /** A typed or spoken request, for the hub's AI module. */
+  say(text: string): boolean {
+    const t = text.trim();
+    if (!t) return false;
+    this.mySaid.add(t);
+    setTimeout(() => this.mySaid.delete(t), 5000);
+    const ok = this.hub.send({ ch: 'voice', ev: { kind: 'transcript', text: t } });
+    ui.set({
+      voiceReply: ok
+        ? { at: Date.now(), heard: t, text: '…', error: false }
+        : { at: Date.now(), heard: t, text: 'The hub is offline, so nothing was sent.', error: true },
+    });
+    return ok;
   }
 
   async handleCommand(cmd: ViewerCommand): Promise<void> {
@@ -223,6 +327,11 @@ export class Controller {
         caseConfig: c.app,
         caseNote: c.note ?? null,
         bookmarks: [],
+        verified: null,
+        voiceReply: null,
+        ...(c.manifest.volumes.length ? { slicePanel: true } : {}),
+        loadSeq: ui.get().loadSeq + 1,
+        suggestion: suggestFor(readPrefs(), surgeonId()),
       });
       logLine(`Loaded "${c.manifest.title}" (${c.manifest.layers.length} layers).`);
     } catch (e) {
@@ -275,9 +384,13 @@ export class Controller {
   private publishState(): void {
     if (!this.viewer) return;
     const view = this.viewer.snapshot();
+    const prev = ui.get().view;
     ui.set({ view });
+    if (view.caseId && (view.mode !== prev?.mode || view.slice.plane !== prev?.slice.plane)) {
+      writePrefs(observe(readPrefs(), { surgeonId: surgeonId(), mode: view.mode, plane: view.slice.plane }));
+    }
     if (ui.get().mock) return; // mocks are frontend-only; keep them off the bus
-    const state: ViewerState = { ...view, bookmarks: ui.get().bookmarks, pending: {} };
+    const state: ViewerState = { ...view, bookmarks: ui.get().bookmarks, pending: ui.get().pending };
     const json = JSON.stringify(state);
     if (json !== this.lastSent && this.hub.send({ ch: 'state', state })) this.lastSent = json;
   }

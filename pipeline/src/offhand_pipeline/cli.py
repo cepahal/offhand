@@ -16,6 +16,7 @@ import typer
 
 from . import casepack
 from .build import SpecError, build_from_spec
+from .isbi2015 import DatasetError, TrackParams, find_subjects, ingest_subject
 from .testpattern import build_testpattern
 from .volume import load_volume
 
@@ -65,6 +66,37 @@ def toothfairy2(
         typer.secho(f"build failed: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(1) from e
     typer.secho(f"wrote {path} ({len(spec['layers'])} layers)", fg=typer.colors.GREEN)
+@app.command()
+def isbi2015(
+    raw: Path = typer.Option(Path("data/raw/isbi2015"), help="Unpacked training_final_v4.zip (git-ignored)."),
+    subject: list[str] = typer.Option([], help="Subject id, e.g. training01 (repeatable). Default: all."),
+    out_root: Path = typer.Option(Path("casepacks/neuroview"), help="Case packs go to <out-root>/isbi2015-<subject>."),
+    findings_mask: str = typer.Option("consensus", help="consensus (both raters), rater1 or rater2."),
+    min_voxels: int = typer.Option(TrackParams.min_voxels, help="Smallest lesion cluster reported."),
+    enlarge_ratio: float = typer.Option(TrackParams.enlarge_ratio, help="Enlarged: relative growth at least this."),
+    enlarge_min_mm3: float = typer.Option(TrackParams.enlarge_min_mm3, help="Enlarged: absolute growth at least this."),
+    brain_faces: int = typer.Option(60_000, help="Triangle budget for the brain surface."),
+    lesion_faces: int = typer.Option(6_000, help="Triangle budget per lesion mesh (one per rater per visit)."),
+) -> None:
+    """ISBI 2015 longitudinal MS lesion training data -> NeuroView case packs (one per subject)."""
+    params = TrackParams(min_voxels, enlarge_ratio, enlarge_min_mm3)
+    try:
+        subjects = subject or find_subjects(raw.resolve())
+        for s in subjects:
+            r = ingest_subject(raw.resolve(), s, out_root.resolve(), params, findings_mask, brain_faces, lesion_faces)
+            kinds = [f["kind"] for f in r.findings]
+            typer.secho(
+                f"wrote {r.out}  ({r.timepoints} visits, {len(r.findings)} findings: "
+                f"{kinds.count('new')} new, {kinds.count('enlarged')} enlarged; {sum(r.faces.values())} triangles)",
+                fg=typer.colors.GREEN,
+            )
+            for name, series in r.lesion_volumes_mm3.items():
+                typer.echo(f"  {name:<9} " + "  ".join(f"{k}: {v:g} mm³" for k, v in series.items()))
+            for w in r.warnings:
+                typer.secho(f"  warning: {w}", fg=typer.colors.YELLOW)
+    except (DatasetError, ValueError, FileNotFoundError) as e:
+        typer.secho(f"isbi2015 failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from e
 
 
 @app.command()

@@ -1,14 +1,25 @@
 import { z } from 'zod';
+import { PollOption } from './common.js';
+
+export const VERIFIED_STATUSES = ['verified', 'needs_review', 'blocked'] as const;
+export type VerifiedStatus = (typeof VERIFIED_STATUSES)[number];
+
+/** Opaque recipient id issued at opt-in. The phone number never leaves the messaging adapter. */
+export const RECIPIENT_REF_PATTERN = /^rcp_[a-z0-9]{6,32}$/;
 
 export const VerifiedText = z
   .object({
     text: z.string().describe('Text that was checked.'),
-    status: z.enum(['verified', 'needs_review', 'blocked']).describe('Check result.'),
+    status: z.enum(VERIFIED_STATUSES).describe('Check result. Only "verified" may be sent to a patient.'),
     findings: z
       .array(z.object({ type: z.string(), detail: z.string() }).describe('One check finding.'))
       .describe('Why the status was given.'),
     policyId: z.string().describe('Policy used.'),
     checkedAt: z.string().describe('ISO timestamp.'),
+    checker: z
+      .enum(['live', 'mock'])
+      .optional()
+      .describe('Optional (additive, 1.1.0): "live" = Bedrock Automated Reasoning, "mock" = fixture results.'),
   })
   .describe('Text after a policy check.');
 export type VerifiedText = z.infer<typeof VerifiedText>;
@@ -21,9 +32,7 @@ export const ShareRequest = z
       .array(z.object({ snapshotUrl: z.string(), label: z.string() }).describe('Shared view.'))
       .describe('Views to send.'),
     verified: VerifiedText,
-    pollOptions: z
-      .array(z.object({ id: z.string(), label: z.string() }).describe('Poll option.'))
-      .describe('Poll options.'),
+    pollOptions: z.array(PollOption).describe('Poll options.'),
   })
   .describe('Request to send a share card to a patient.');
 export type ShareRequest = z.infer<typeof ShareRequest>;

@@ -12,16 +12,25 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "replay": "tsx scripts/replay.ts",
-    "gesture:monitor": "tsx scripts/gesture-monitor.ts"
+    "gesture:monitor": "tsx scripts/gesture-monitor.ts",
+    "record:gestures": "tsx scripts/record-gestures.ts",
+    "start:live": "tsx src/server.ts",
+    "e2e:live": "tsx scripts/e2e-live.ts",
+    "test:live": "vitest run --config vitest.live.config.ts",
+    "test:failclosed": "tsx scripts/fail-closed-gate.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1166.0",
     "@fastify/static": "^10.1.10",
     "@fastify/websocket": "^11.3.7",
-    "@offhand/contracts": "workspace:*",
+    "@hoverscan/contracts": "workspace:*",
+    "@spectrum-ts/core": "12.16.0",
+    "@spectrum-ts/imessage": "12.16.0",
     "fastify": "^5.12.8",
     "pino": "^10.4.0",
     "pino-pretty": "^13.2.0",
-    "serialport": "^13.0.0"
+    "serialport": "^13.0.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

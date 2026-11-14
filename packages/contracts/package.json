@@ -1,6 +1,6 @@
 {
-  "name": "@offhand/contracts",
-  "version": "1.0.0",
+  "name": "@hoverscan/contracts",
+  "version": "1.2.0",
   "private": true,
   "description": "Shared message/data contracts (Zod schemas + types + generated JSON Schema).",
   "type": "module",
@@ -17,6 +17,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "gen:schema": "tsx scripts/gen-schema.ts",
+    "schema:check": "tsx scripts/gen-schema.ts --check",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },

@@ -1,345 +1,454 @@
-/** The whole page: one Win95 window on a teal desktop, plus a taskbar. */
-import { useEffect, useState } from 'preact/hooks';
-import { CONTRACTS_VERSION } from '@offhand/contracts';
+/**
+ * The one screen. Top bar (case, visit, source credit); left: 3D view and slice panel; right: the
+ * current finding, its explanation and rulebook badge, voice and typed input, then the share
+ * controls and timeline; footer: the disclaimer.
+ *
+ * The explanation shown here is the hub's latest VerifiedText, unchanged. It is the only text that
+ * can be read aloud or sent, and only while its status is "verified". The hub enforces the same
+ * rule again, so a disabled button here is a convenience, not the safety mechanism.
+ */
+import { useEffect, useRef, useState } from 'preact/hooks';
+import type { CasePackManifest, VerifiedText } from '@hoverscan/contracts';
 import { controller } from './controller.js';
-import { panels } from './panels.js';
-import { ui, useStore } from './store.js';
+import { ui, useStore, type TimelineRow } from './store.js';
+import { badgeFor, canSend } from './timeline.js';
+import { listenOnce, readAloud, readAloudSupported, stopReading, voiceSupported, VOICE_NEEDS_CHROME } from './speech.js';
+import { patients } from '../demo/data.js';
+import { beginOpenMic } from '../demo/voice-listen.js';
+import { hear, idleWake, takeCommand, type WakeState } from '../demo/wake.js';
+import { confirmResult, gestureSignal, planAction, understoodLine, validateModelOutput, type ActionResult, type GestureTick } from '../demo/openai-actions.js';
 import { installKeyboard } from '../input/keyboard.js';
-import { LogPanel } from '../panels/ViewerPanels.js';
 import { SlicePanel } from '../slices/SlicePanel.js';
+import { orderedTimepoints } from '../viewer/logic.js';
+import { regionKindFromSources, regionLabel } from '../viewer/palette.js';
 import { ViewerPane } from '../viewer/ViewerPane.js';
-import { Clock, Dialog, MenuBar, MenuList, Window, type Menu } from '../ui/win95.js';
 
 export const DISCLAIMER = 'For communication and education. Not for diagnosis.';
 const send = controller.dispatch.bind(controller);
 
 export function App() {
   const s = useStore(ui);
-  const [startOpen, setStartOpen] = useState(false);
-
   useEffect(() => installKeyboard(controller), []);
-  useEffect(() => {
-    document.body.classList.toggle('big', s.bigUi);
-  }, [s.bigUi]);
-
-  const m = s.manifest;
-  const menus: Menu[] = [
-    {
-      label: 'File',
-      items: [
-        { label: 'Open case...', hint: 'O', onClick: () => ui.set({ dialog: 'open' }) },
-        { label: 'Rescan case packs', onClick: () => void rescan() },
-        'sep',
-        { label: 'Capture PNG', hint: 'C', disabled: !m, onClick: () => send({ type: 'capture', requestId: crypto.randomUUID() }, 'mouse') },
-        { label: 'Bookmark view', hint: 'B', disabled: !m, onClick: () => send({ type: 'bookmark' }, 'mouse') },
-      ],
-    },
-    {
-      label: 'View',
-      items: [
-        { label: 'Reset view', hint: 'R', disabled: !m, onClick: () => send({ type: 'reset_view' }, 'mouse') },
-        { label: 'Peel out', hint: '[', disabled: !m, onClick: () => send({ type: 'peel', dir: 'out' }, 'mouse') },
-        { label: 'Peel in', hint: ']', disabled: !m, onClick: () => send({ type: 'peel', dir: 'in' }, 'mouse') },
-        { label: 'Next finding', hint: 'N', disabled: !m, onClick: () => send({ type: 'focus_finding', findingId: 'next' }, 'mouse') },
-        'sep',
-        {
-          label: 'Scrub mode',
-          hint: 'M',
-          checked: s.view?.mode === 'scrub',
-          disabled: !m,
-          onClick: () => send({ type: 'mode', mode: s.view?.mode === 'scrub' ? 'orbit' : 'scrub' }, 'mouse'),
-        },
-        { label: 'Slice panel', hint: 'S', checked: s.slicePanel, onClick: () => ui.set({ slicePanel: !s.slicePanel }) },
-        { label: 'Big UI (kiosk)', checked: s.bigUi, onClick: () => ui.set({ bigUi: !s.bigUi }) },
-      ],
-    },
-    {
-      label: 'Help',
-      items: [
-        { label: 'Keys & gestures', hint: '?', onClick: () => ui.set({ dialog: 'keys' }) },
-        { label: 'About offhand', onClick: () => ui.set({ dialog: 'about' }) },
-      ],
-    },
-  ];
-
-  const hubDot = s.hub === 'open' ? 'live' : s.hub === 'connecting' ? 'mock' : 'error';
-  const title = `offhand - ${m ? m.title : 'Viewer'}`;
 
   return (
-    <>
-      <div class="desktop">
-        <Window title={title} icon="▣" className="main-window">
-          <MenuBar menus={menus} />
-          <div class="toolbar">
-            <button disabled={!m} onClick={() => send({ type: 'rotate', yawDeg: -30 }, 'mouse')} title="Turn left (←)">
-              ◄ Turn
-            </button>
-            <button disabled={!m} onClick={() => send({ type: 'rotate', yawDeg: 30 }, 'mouse')} title="Turn right (→)">
-              Turn ►
-            </button>
-            <button disabled={!m} onClick={() => send({ type: 'zoom', factor: 1.25 }, 'mouse')} title="Zoom in (+)">
-              Zoom +
-            </button>
-            <button disabled={!m} onClick={() => send({ type: 'zoom', factor: 0.8 }, 'mouse')} title="Zoom out (-)">
-              Zoom −
-            </button>
-            <span class="sep" />
-            <button disabled={!m} onClick={() => send({ type: 'peel', dir: 'out' }, 'mouse')}>
-              Peel out
-            </button>
-            <button disabled={!m} onClick={() => send({ type: 'peel', dir: 'in' }, 'mouse')}>
-              Peel in
-            </button>
-            <span class="sep" />
-            <button disabled={!m} onClick={() => send({ type: 'reset_view' }, 'mouse')}>
-              Reset
-            </button>
-            <button onClick={() => ui.set({ dialog: 'open' })}>Open...</button>
+    <div class="screen">
+      <TopBar />
+      <main class="screen-main">
+        <section class="screen-left">
+          <div class="screen-3d">
+            <ViewerPane />
           </div>
-          <div class="workarea">
-            <div class="viewport-col">
-              <ViewerPane />
-              {s.slicePanel && <SlicePanel />}
-              <LogPanel />
+          {s.manifest && s.manifest.volumes.length > 0 && (
+            <div class="screen-slices">
+              <SlicePanel />
             </div>
-            <div class="side">
-              {[...panels]
-                .sort((a, b) => a.order - b.order)
-                .map((p) => (
-                  <p.component key={p.id} />
-                ))}
-            </div>
-          </div>
-          <div class="statusbar">
-            <div class="grow">
-              {m ? `Source: ${m.source.dataset} (${m.source.subjectId}) · License: ${m.source.license}` : 'Ready'}
-            </div>
-            <div>
-              <span class={`dot ${hubDot}`} />
-              Hub: {s.hub}
-            </div>
-            {Object.entries(s.modules).map(([name, h]) => (
-              <div key={name} title={h.detail}>
-                <span class={`dot ${h.status}`} />
-                {name}
-              </div>
+          )}
+        </section>
+        <aside class="screen-right">
+          <FindingCard />
+          <ExplanationCard />
+          <PatientCard />
+          <AskBox />
+          <ShareCard />
+          <GestureSignal />
+        </aside>
+      </main>
+      <footer class="screen-footer">{DISCLAIMER}</footer>
+    </div>
+  );
+}
+
+function TopBar() {
+  const s = useStore(ui);
+  const m = s.manifest;
+  const tps = m ? orderedTimepoints(m) : [];
+  const i = Math.min(s.view?.timepoint ?? 0, Math.max(0, tps.length - 1));
+  const current = m ? `${m.app}/${m.caseId}` : '';
+  const locals = controller.localCases();
+  const credit = s.caseConfig?.credit ?? (m ? `Source: ${m.source.dataset} (${m.source.license})` : '');
+  const hubOk = s.hub === 'open';
+  return (
+    <header class="screen-top">
+      <select
+        class="case-select"
+        aria-label="Case"
+        value={current}
+        onChange={(e) => {
+          const [app, caseId] = (e.target as HTMLSelectElement).value.split('/');
+          if (app && caseId) send({ type: 'load_case', app, caseId }, 'mouse');
+        }}
+      >
+        {!m && <option value="">{s.loading ?? 'Choose a case…'}</option>}
+        {s.cases.map((c) => (
+          <option key={`${c.app}/${c.caseId}`} value={`${c.app}/${c.caseId}`}>
+            {c.title}
+          </option>
+        ))}
+        {locals.length > 0 && (
+          <optgroup label="Mock shapes (not anatomy)">
+            {locals.map((c) => (
+              <option key={`${c.app}/${c.caseId}`} value={`${c.app}/${c.caseId}`}>
+                {c.title}
+              </option>
             ))}
-            <div>{DISCLAIMER}</div>
-          </div>
-        </Window>
-      </div>
-
-      <div class="taskbar">
-        <button class={`start ${startOpen ? 'pressed' : ''}`} onClick={() => setStartOpen(!startOpen)}>
-          ▤ Start
-        </button>
-        <button class="task active">▣ {title}</button>
-        <span class="spacer" />
-        <div class="tray">
-          <span class="disclaimer">{DISCLAIMER}</span>
-          <Clock />
+          </optgroup>
+        )}
+      </select>
+      {tps.length > 1 ? (
+        <div class="timepoint">
+          <button disabled={i === 0} onClick={() => send({ type: 'timepoint', index: i - 1 }, 'mouse')} aria-label="Previous visit">
+            ◀
+          </button>
+          <span>{tps[i]!.label}</span>
+          <button disabled={i === tps.length - 1} onClick={() => send({ type: 'timepoint', index: i + 1 }, 'mouse')} aria-label="Next visit">
+            ▶
+          </button>
         </div>
-      </div>
-      {startOpen && (
-        <MenuList
-          className="startmenu"
-          onPick={() => setStartOpen(false)}
-          items={[
-            { label: 'Open case...', onClick: () => ui.set({ dialog: 'open' }) },
-            'sep',
-            ...controller.localCases().map((c) => ({
-              label: c.title.replace(/ — MOCK.*$/, ' (mock)'),
-              onClick: () => send({ type: 'load_case', app: c.app, caseId: c.caseId }, 'mouse'),
-            })),
-            'sep',
-            { label: 'Keys & gestures', onClick: () => ui.set({ dialog: 'keys' }) },
-            { label: s.bigUi ? 'Normal UI' : 'Big UI (kiosk)', onClick: () => ui.set({ bigUi: !s.bigUi }) },
-            { label: 'About offhand', onClick: () => ui.set({ dialog: 'about' }) },
-            'sep',
-            { label: 'Restart viewer', onClick: () => location.reload() },
-          ]}
-        />
+      ) : (
+        <div class="timepoint">{tps[0]?.label ?? ''}</div>
       )}
+      <div class="credit" title={credit}>
+        {credit}
+      </div>
+      <div class={`hub-dot ${hubOk ? 'ok' : 'down'}`} title={hubOk ? 'Hub connected' : 'Hub offline'}>
+        {hubOk ? 'hub' : 'hub offline'}
+      </div>
+    </header>
+  );
+}
 
-      {s.dialog === 'open' && <OpenDialog />}
-      {s.dialog === 'keys' && <KeysDialog />}
-      {s.dialog === 'about' && <AboutDialog />}
+function focusedFinding(m: CasePackManifest | null, id: string | null | undefined) {
+  return m?.findings.find((f) => f.id === id);
+}
+
+function FindingCard() {
+  const s = useStore(ui);
+  const m = s.manifest;
+  const f = focusedFinding(m, s.view?.focusedFindingId);
+  const kind = m ? regionKindFromSources(`${m.source.dataset} ${m.findings.map((item) => item.label).join(' ')}`) : null;
+  return (
+    <section class="card">
+      <h2>Current finding</h2>
+      {!m ? (
+        <p class="muted">No case loaded.</p>
+      ) : m.findings.length === 0 ? (
+        <p class="muted">This case has no findings.</p>
+      ) : f ? (
+        <>
+          <p class="finding-label">{s.mock ? `${f.label} (mock target, not anatomy)` : f.label}</p>
+          {kind && <p class="muted">{regionLabel(kind)}</p>}
+          {f.reportExcerpt && <p class="measured">{f.reportExcerpt}</p>}
+        </>
+      ) : (
+        <>
+          <p class="muted">None selected. Say "show the finding" or use Next.</p>
+          {kind && <p class="muted">{regionLabel(kind)}</p>}
+        </>
+      )}
+      {m && m.findings.length > 0 && (
+        <div class="row-buttons">
+          <button onClick={() => send({ type: 'focus_finding', findingId: 'prev' }, 'mouse')}>Previous</button>
+          <button onClick={() => send({ type: 'focus_finding', findingId: 'next' }, 'mouse')}>Next</button>
+          <button onClick={() => send({ type: 'reset_view' }, 'mouse')}>Reset view</button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ExplanationCard() {
+  const s = useStore(ui);
+  const [speaking, setSpeaking] = useState(false);
+  const vt = s.verified;
+
+  // A new explanation (or a downgrade) always stops whatever was being read.
+  useEffect(() => {
+    stopReading();
+    setSpeaking(false);
+  }, [vt]);
+  useEffect(() => () => stopReading(), []);
+
+  const f = focusedFinding(s.manifest, s.view?.focusedFindingId);
+  return (
+    <section class="card">
+      <h2>Explanation</h2>
+      {vt ? <Explanation vt={vt} /> : <p class="muted">Nothing explained yet. Say "explain it" or press Explain.</p>}
+      <div class="row-buttons">
+        <button disabled={!f || s.hub !== 'open' || s.mock} onClick={() => send({ type: 'explain' }, 'mouse')}>
+          Explain
+        </button>
+        {speaking ? (
+          <button
+            class="stop"
+            onClick={() => {
+              stopReading();
+              setSpeaking(false);
+            }}
+          >
+            ■ Stop reading
+          </button>
+        ) : (
+          <button
+            disabled={!canSend(vt) || !readAloudSupported()}
+            title={canSend(vt) ? 'Read the explanation aloud' : 'Only text checked against the rulebook is read aloud'}
+            onClick={() => setSpeaking(readAloud(vt, () => setSpeaking(false)))}
+          >
+            Read aloud
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function Explanation({ vt }: { vt: VerifiedText }) {
+  const b = badgeFor(vt);
+  return (
+    <>
+      <p class={`explanation ${b.tone}`}>{vt.text}</p>
+      <div class={`badge ${b.tone}`}>
+        {b.label}
+        {vt.checker === 'mock' && <span class="badge-note"> (mock check, development only)</span>}
+      </div>
+      {b.reason && <p class="reason">{b.reason}</p>}
     </>
   );
 }
 
-async function rescan(): Promise<void> {
-  await fetch('/api/cases/rescan', { method: 'POST' }).catch(() => undefined);
-  await controller.refreshCases();
+function PatientCard() {
+  const five = patients.slice(0, 5);
+  return (
+    <section class="card">
+      <h2>Patient</h2>
+      {five.map((patient) => (
+        <p key={patient.mrn}>
+          <b>{patient.name}</b> MRN {patient.mrn} · age {patient.age}
+          <span class="muted"> {patient.procedure}</span>
+        </p>
+      ))}
+    </section>
+  );
 }
 
-function OpenDialog() {
+function AskBox() {
   const s = useStore(ui);
-  const [sel, setSel] = useState<string | null>(s.manifest ? `${s.manifest.app}/${s.manifest.caseId}` : null);
-  const mocks = controller.localCases();
-  const close = () => ui.set({ dialog: null });
-  const open = (key: string | null) => {
-    if (!key) return;
-    const [app, caseId] = key.split('/') as [string, string];
-    send({ type: 'load_case', app, caseId }, 'mouse');
-    close();
+  const [text, setText] = useState('');
+  const [interim, setInterim] = useState('');
+  const [listening, setListening] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
+  const [heard, setHeard] = useState('');
+  const [result, setResult] = useState<ActionResult | null>(null);
+  const stop = useRef<(() => void) | null>(null);
+  const wake = useRef<WakeState>(idleWake());
+  const hasVoice = voiceSupported();
+  const reply = s.voiceReply;
+
+  const applyTranscript = (transcript: string) => {
+    setHeard(transcript);
+    const planned = planAction(validateModelOutput({ action: 'ask', question: 'Waiting for the model.' }), '');
+    setResult({ ...planned, error: null, understood: 'Waiting for the model.' });
+    void fetch('/api/voice/action', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ transcript, patients: patients.slice(0, 5).map((p) => ({ name: p.name, mrn: p.mrn })) }),
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('model');
+        return response.json() as Promise<unknown>;
+      })
+      .then((raw) => {
+        const action = validateModelOutput(raw);
+        const named = 'patient' in action ? action.patient : '';
+        const patient = patients.find((item) => item.name.toLowerCase() === named.toLowerCase());
+        const before = patient?.medications.join('; ') ?? '';
+        setResult(planAction(action, before));
+      })
+      .catch(() => {
+        setResult(planAction({ action: 'ask', question: 'I could not reach the model. Nothing was changed.' }, ''));
+      });
   };
+
+  useEffect(() => {
+    const mic = beginOpenMic({
+      onInterim(value) {
+        wake.current = hear(wake.current, value, Date.now());
+        setInterim(wake.current.buffer);
+      },
+      onText(value) {
+        wake.current = hear(wake.current, value, Date.now());
+        window.setTimeout(() => {
+          const taken = takeCommand(wake.current, Date.now());
+          wake.current = taken.state;
+          if (taken.command) applyTranscript(taken.command);
+        }, 1200);
+      },
+      onError: setMicError,
+    });
+    return () => mic.stop();
+  }, []);
+
+  const toggleMic = () => {
+    if (stop.current) {
+      stop.current();
+      return;
+    }
+    setMicError(null);
+    stop.current = listenOnce({
+      onInterim: setInterim,
+      onFinal: (t) => {
+        setInterim('');
+        controller.say(t);
+      },
+      onError: setMicError,
+      onEnd: () => {
+        stop.current = null;
+        setListening(false);
+        setInterim('');
+      },
+    });
+    setListening(!!stop.current);
+  };
+
   return (
-    <Dialog title="Open case" onClose={close} width={620}>
-      {s.hub !== 'open' && (
-        <p>
-          The hub is not connected, so no case packs can be listed (start it with <kbd>pnpm dev</kbd>). The
-          frontend mocks below still work.
+    <section class="card">
+      <h2>Ask</h2>
+      <div class="ask">
+        {hasVoice ? (
+          <button class={`mic ${listening ? 'on' : ''}`} onClick={toggleMic} disabled={s.hub !== 'open'} aria-pressed={listening}>
+            {listening ? '● Listening… (click to stop)' : '🎤 Speak'}
+          </button>
+        ) : (
+          <p class="muted">{VOICE_NEEDS_CHROME}</p>
+        )}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (controller.say(text)) setText('');
+          }}
+        >
+          <input
+            type="text"
+            value={text}
+            placeholder='Type a request, e.g. "show the finding"'
+            onInput={(e) => setText((e.target as HTMLInputElement).value)}
+            aria-label="Typed request"
+          />
+          <button type="submit" disabled={!text.trim() || s.hub !== 'open'}>
+            Send
+          </button>
+        </form>
+      </div>
+      {interim && <p class="muted">Hearing: {interim}</p>}
+      {heard && <p>Heard: {heard}</p>}
+      {result && <p>Understood as: {result.understood || understoodLine(result.action)}</p>}
+      {result?.pending && (
+        <p class="measured">
+          {result.pending.field}: {result.pending.before || '—'} → {result.pending.after}
         </p>
       )}
-      <div class="sunken" style={{ maxHeight: '300px', overflow: 'auto' }}>
-        <table>
-          <thead>
-            <tr>
-              <th>App</th>
-              <th>Case</th>
-              <th>Title</th>
-              <th>Dataset</th>
-              <th>Layers</th>
-            </tr>
-          </thead>
+      {result?.table && (
+        <table class="white-table">
           <tbody>
-            {s.cases.map((c) => {
-              const key = `${c.app}/${c.caseId}`;
-              return (
-                <tr key={key} class={sel === key ? 'sel' : ''} onClick={() => setSel(key)} onDblClick={() => open(key)}>
-                  <td>{c.app}</td>
-                  <td>{c.caseId}</td>
-                  <td>{c.title}</td>
-                  <td>{c.dataset}</td>
-                  <td>{c.layers}</td>
-                </tr>
-              );
-            })}
-            {s.cases.length === 0 && (
-              <tr>
-                <td colSpan={5} class="muted">
-                  No case packs found. Run <kbd>pnpm testpattern</kbd>, then File → Rescan.
-                </td>
+            {result.table.map((row) => (
+              <tr key={row}>
+                <td>{row}</td>
               </tr>
-            )}
-            {mocks.length > 0 && (
-              <tr>
-                <td colSpan={5} class="group-row">
-                  Frontend mocks — primitive shapes, NOT anatomy, no patient data
-                </td>
-              </tr>
-            )}
-            {mocks.map((c) => {
-              const key = `${c.app}/${c.caseId}`;
-              return (
-                <tr key={key} class={sel === key ? 'sel' : ''} onClick={() => setSel(key)} onDblClick={() => open(key)}>
-                  <td>{c.app}</td>
-                  <td>{c.caseId}</td>
-                  <td>{c.title}</td>
-                  <td>none (mock)</td>
-                  <td>—</td>
-                </tr>
-              );
-            })}
+            ))}
           </tbody>
         </table>
-      </div>
-      {s.invalid.length > 0 && (
-        <details style={{ marginTop: '6px' }}>
-          <summary>{s.invalid.length} invalid case pack(s)</summary>
-          {s.invalid.map((i) => (
-            <div key={i.path} class="small">
-              <b>{i.path}</b>: {i.errors.join('; ')}
-            </div>
-          ))}
-        </details>
       )}
-      <div class="buttons">
-        <button onClick={() => void rescan()}>Rescan</button>
-        <button disabled={!sel} onClick={() => open(sel)}>
-          Open
+      {result?.note && <p class="measured">{result.note}</p>}
+      {result?.error && <p class="reason">{result.error}</p>}
+      {result?.pending && (
+        <button
+          type="button"
+          onClick={() => setResult((current) => (current ? confirmResult(current) : current))}
+        >
+          Confirm
         </button>
-        <button onClick={close}>Cancel</button>
-      </div>
-    </Dialog>
-  );
-}
-
-const KEYS: [string, string][] = [
-  ['← →', 'Swipe left / right: turn the model'],
-  ['↑ ↓', 'Swipe up / down: tilt the model'],
-  ['+ / −', 'Push / pull: zoom in / out'],
-  ['[  ]', 'Spin clockwise / counter-clockwise: peel a layer away / back'],
-  ['W', 'Wave: push-to-talk (voice)'],
-  ['hold H', 'Hover mock: move the mouse; hold still 1 s to enter scrub, then move up/down'],
-  [', .', 'Scrub down / up'],
-  ['M', 'Toggle orbit / scrub mode'],
-  ['N  P', 'Next / previous finding'],
-  ['1 … 9', 'Show / hide layer'],
-  ['R', 'Reset view'],
-  ['B  C', 'Bookmark / capture PNG'],
-  ['O  S', 'Open case / slice panel'],
-  ['Mouse', 'Drag: orbit · Right-drag: pan · Wheel: zoom'],
-];
-
-function KeysDialog() {
-  const close = () => ui.set({ dialog: null });
-  return (
-    <Dialog title="Keys & gestures" onClose={close} width={520}>
-      <p>Keys marked as gestures go through the same gesture mapper as the hand-tracking board.</p>
-      <table>
-        <tbody>
-          {KEYS.map(([k, d]) => (
-            <tr key={k}>
-              <td>
-                <kbd>{k}</kbd>
-              </td>
-              <td>{d}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div class="buttons">
-        <button onClick={close}>OK</button>
-      </div>
-    </Dialog>
-  );
-}
-
-function AboutDialog() {
-  const { manifest } = useStore(ui);
-  const close = () => ui.set({ dialog: null });
-  return (
-    <Dialog title="About offhand" onClose={close} width={460}>
-      <p>
-        <b>offhand</b> — touch-free 3D scan viewer.
-        <br />
-        Contracts v{CONTRACTS_VERSION}
-      </p>
-      <p>
-        <b>{DISCLAIMER}</b>
-      </p>
-      {manifest && (
-        <p class="small">
-          Current case: {manifest.source.dataset}, subject {manifest.source.subjectId}.
-          <br />
-          License: {manifest.source.license}
-          <br />
-          {manifest.source.citation}
-          {manifest.source.url && (
-            <>
-              <br />
-              <a href={manifest.source.url} target="_blank" rel="noreferrer">
-                {manifest.source.url}
-              </a>
-            </>
-          )}
-        </p>
       )}
-      <div class="buttons">
-        <button onClick={close}>OK</button>
+      {micError && <p class="reason">{micError}</p>}
+      {reply && (
+        <div class={`reply ${reply.error ? 'error' : ''}`}>
+          {reply.heard && <div class="muted">You: {reply.heard}</div>}
+          <div>{reply.text}</div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+const TIMELINE_ICON: Record<TimelineRow['kind'], string> = {
+  sent: '✉',
+  delivered: '✓',
+  read: '👁',
+  vote: '☑',
+  reaction: '♥',
+  error: '✕',
+  status: '•',
+};
+
+function GestureSignal() {
+  const s = useStore(ui);
+  const [now, setNow] = useState(() => Date.now());
+  const [events, setEvents] = useState<GestureTick[]>([]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    const g = s.lastGesture;
+    if (!g) return;
+    setEvents((current) => [...current.slice(-12), { name: g.name, at: g.at }]);
+  }, [s.lastGesture]);
+  const port = s.modules.gesture?.detail?.split(' ').find((part) => part.startsWith('/dev/') || part.startsWith('COM')) ?? 'auto';
+  const portName = port.split('/').pop() ?? port;
+  return (
+    <section class="card">
+      <h2>Gesture signal</h2>
+      <p>{gestureSignal(events, now, portName)}</p>
+      <ol class="timeline">
+        {events.map((event) => (
+          <li key={`${event.at}-${event.name}`}>
+            {event.name} <time>{new Date(event.at).toLocaleTimeString()}</time>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function ShareCard() {
+  const s = useStore(ui);
+  const vt = s.verified;
+  const confirmFor = s.pending.confirmFor;
+  const ok = canSend(vt) && s.hub === 'open' && !s.mock;
+  return (
+    <section class="card">
+      <h2>Patient</h2>
+      <div class="row-buttons">
+        <button disabled={!ok || !!confirmFor} onClick={() => send({ type: 'share_to_patient', bookmarkIds: [] }, 'mouse')}>
+          Send to patient
+        </button>
+        <button class="confirm" disabled={!ok || !confirmFor} onClick={() => confirmFor && send({ type: 'confirm', for: confirmFor }, 'mouse')}>
+          Confirm
+        </button>
+        <button disabled={!confirmFor} onClick={() => confirmFor && send({ type: 'cancel', for: confirmFor }, 'mouse')}>
+          Cancel
+        </button>
       </div>
-    </Dialog>
+      {confirmFor && <p class="muted">Waiting for your Confirm. Nothing has been sent.</p>}
+      {vt && !canSend(vt) && <p class="reason">Sending is off: the explanation is not checked against the rulebook.</p>}
+      <ol class="timeline">
+        {s.timeline.length === 0 && <li class="muted">Nothing sent yet.</li>}
+        {[...s.timeline].reverse().map((r) => (
+          <li key={`${r.at}-${r.kind}-${r.text}`} class={`tl-${r.kind}`}>
+            <span class="tl-icon">{TIMELINE_ICON[r.kind]}</span>
+            <span class="tl-text">{r.text}</span>
+            <time>{new Date(r.at).toLocaleTimeString()}</time>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

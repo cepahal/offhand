@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ViewerCommand } from './command.js';
 import { GestureEvent } from './gesture.js';
-import { ShareEvent } from './share.js';
+import { ShareEvent, VerifiedText } from './share.js';
 import { ViewerState } from './state.js';
 
 export const VoiceEvent = z
@@ -10,6 +10,7 @@ export const VoiceEvent = z
       .enum(['listening', 'transcript', 'speaking', 'tool', 'error'])
       .describe('Voice event kind.'),
     text: z.string().optional().describe('Transcript/tool/error text.'),
+    tool: z.string().optional().describe('Optional (additive, 1.1.0): tool name, for tool events.'),
   })
   .describe('Voice module event.');
 
@@ -28,6 +29,9 @@ export const BusEnvelope = z
     z.object({ ch: z.literal('state'), state: ViewerState }).describe('Latest viewer state.'),
     z.object({ ch: z.literal('gesture'), ev: GestureEvent }).describe('Raw gesture-board event.'),
     z.object({ ch: z.literal('share'), ev: ShareEvent }).describe('Share event.'),
+    z
+      .object({ ch: z.literal('verified'), ev: VerifiedText })
+      .describe('Fact-check result for an explain command (additive, 1.1.0). Only status "verified" may be shared.'),
     z.object({ ch: z.literal('voice'), ev: VoiceEvent }).describe('Voice event.'),
     z.object({ ch: z.literal('log'), ...LogEvent.shape }).describe('Log line.'),
   ])

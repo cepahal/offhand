@@ -60,7 +60,7 @@
 // Config
 // ---------------------------------------------------------------------------------------------
 #define FW_NAME "offhand-gesture"
-#define FW_VERSION "0.1.0"
+#define FW_VERSION "0.1.1"
 #define SERIAL_BAUD 115200
 
 #define PIN_SDA 21
@@ -81,10 +81,10 @@
 #define RETRY_MS 2000          // reconnect attempts while missing/lost
 #define POLL_MS 8              // gesture register poll (sensor runs ~120 fps)
 #define HOVER_MS 50            // hover events at 20 Hz while a hand is in view
-#define HOVER_MIN_BRIGHTNESS 20  // below this the "object" is noise
+#define HOVER_MIN_BRIGHTNESS 8   // lower = a farther / dimmer hand still counts as in view
 #define HOVER_LEFT_MS 150      // hand must be gone this long before "left view"
 #define SNAP_WINDOW_MS 600     // forward then backward within this = SNAP
-#define GESTURE_EXIT_MS 200    // library default; lower = faster push/pull, more misreads
+#define GESTURE_EXIT_MS 120    // shorter wait before a push/pull is reported
 #define OBJ_CENTER_MAX 3712.0f // getObjectCenterX/Y range per RevEng_PAJ7620
 
 // ---------------------------------------------------------------------------------------------
@@ -108,7 +108,7 @@ struct Settings {
   uint16_t rotate = 0;  // 0/90/180/270
   bool mirror = false;
   bool hover = true;
-  bool game = false;
+  bool game = true;  // game speed (~240 fps) is the more sensitive gesture mode
   bool verbose = false;
 } cfg;
 
@@ -502,10 +502,19 @@ void loadSettings() {
   cfg.rotate = prefs.getUShort("rotate", 0);
   cfg.mirror = prefs.getBool("mirror", false);
   cfg.hover = prefs.getBool("hover", true);
-  cfg.game = prefs.getBool("game", false);
+  cfg.game = prefs.getBool("game", true);
   cfg.verbose = prefs.getBool("verbose", false);
+  bool sens = prefs.getBool("sens1", false);
   prefs.end();
   if (cfg.rotate % 90 || cfg.rotate > 270) cfg.rotate = 0;
+  // Boards flashed before 0.1.1 saved normal speed. Apply game speed once.
+  if (!sens) {
+    cfg.game = true;
+    saveSettings();
+    prefs.begin("offhand", false);
+    prefs.putBool("sens1", true);
+    prefs.end();
+  }
 }
 
 void saveSettings() {

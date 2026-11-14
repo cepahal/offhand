@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { GestureEvent } from '@offhand/contracts';
+import type { GestureEvent } from '@hoverscan/contracts';
 import { ReadlineParser, SerialPort } from 'serialport';
 import type { GestureConfig } from '../config.js';
 import { parseLine } from './parser.js';

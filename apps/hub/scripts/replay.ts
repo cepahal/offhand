@@ -8,7 +8,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { BusEnvelope } from '@offhand/contracts';
+import { BusEnvelope } from '@hoverscan/contracts';
 import { loadConfig, REPO_ROOT } from '../src/config.js';
 
 const args = process.argv.slice(2);

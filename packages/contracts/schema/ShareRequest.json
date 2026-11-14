@@ -1,7 +1,7 @@
 {
-  "$id": "offhand/ShareRequest.json",
+  "$id": "hoverscan/ShareRequest.json",
   "title": "ShareRequest",
-  "x-contracts-version": "1.0.0",
+  "x-contracts-version": "1.2.0",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
@@ -47,7 +47,7 @@
             "needs_review",
             "blocked"
           ],
-          "description": "Check result."
+          "description": "Check result. Only \"verified\" may be sent to a patient."
         },
         "findings": {
           "type": "array",
@@ -76,6 +76,14 @@
         "checkedAt": {
           "type": "string",
           "description": "ISO timestamp."
+        },
+        "checker": {
+          "description": "Optional (additive, 1.1.0): \"live\" = Bedrock Automated Reasoning, \"mock\" = fixture results.",
+          "type": "string",
+          "enum": [
+            "live",
+            "mock"
+          ]
         }
       },
       "required": [
@@ -93,10 +101,12 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Option id, echoed back as ShareEvent.optionId."
           },
           "label": {
-            "type": "string"
+            "type": "string",
+            "description": "Text shown to the patient."
           }
         },
         "required": [
