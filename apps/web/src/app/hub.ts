@@ -2,7 +2,7 @@
  * Connection to the hub: one WebSocket (/ws) for bus envelopes + small REST helpers.
  * Reconnects with back-off. The hub validates every envelope; the viewer trusts what it receives.
  */
-import type { BusEnvelope, CasePackManifest } from '@offhand/contracts';
+import type { BusEnvelope, CasePackManifest } from '@hoverscan/contracts';
 
 export type HubStatus = 'connecting' | 'open' | 'closed';
 
@@ -44,11 +44,13 @@ export class HubClient {
   private statusListeners = new Set<(s: HubStatus) => void>();
   private retryMs = 500;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private stopped = false;
 
   constructor(private url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`) {}
 
   connect(): void {
     if (this.ws) return;
+    this.stopped = false;
     this.setStatus('connecting');
     const ws = new WebSocket(this.url);
     this.ws = ws;
@@ -66,8 +68,10 @@ export class HubClient {
       this.listeners.forEach((fn) => fn(env));
     };
     ws.onclose = () => {
+      if (this.ws !== ws) return;
       this.ws = null;
       this.setStatus('closed');
+      if (this.stopped) return;
       this.timer = setTimeout(() => this.connect(), this.retryMs);
       this.retryMs = Math.min(this.retryMs * 2, 5000);
     };
@@ -91,8 +95,11 @@ export class HubClient {
   }
 
   close(): void {
+    this.stopped = true;
     if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
     this.ws?.close();
+    this.ws = null;
   }
 
   private setStatus(s: HubStatus): void {

@@ -1,7 +1,35 @@
-import { GestureEvent, type ViewerCommand } from '@offhand/contracts';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { GestureEvent, type ViewerCommand } from '@hoverscan/contracts';
+import { REPO_ROOT } from '../config.js';
 import type { HubContext, HubModule, ModuleHealth } from '../modules.js';
+import { GestureClassifier, type GestureScore, type LabelledExample } from './classifier.js';
 import { GestureLink, type LinkStatus } from './link.js';
 import { GestureMapper } from './mapper.js';
+
+function loadClassifier(): GestureClassifier | null {
+  if (process.env.VITEST) return null;
+  const dir = join(REPO_ROOT, 'data', 'gesture-samples');
+  if (!existsSync(dir)) return null;
+  const examples: LabelledExample[] = [];
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith('.jsonl')) continue;
+    for (const line of readFileSync(join(dir, name), 'utf8').split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const row = JSON.parse(line) as { label?: string; event?: unknown };
+        const ev = GestureEvent.safeParse(row.event);
+        if (row.label && ev.success) examples.push({ label: row.label, event: ev.data });
+      } catch {
+        // skip a torn line
+      }
+    }
+  }
+  if (examples.length === 0) return null;
+  const clf = new GestureClassifier();
+  clf.train(examples);
+  return clf.trained ? clf : null;
+}
 
 export function linkHealth(s: LinkStatus): ModuleHealth {
   switch (s.state) {
@@ -34,7 +62,21 @@ export function createGestureModule(ctx: HubContext): HubModule {
   const boardMapper = new GestureMapper('gesture', mapperCfg);
   const mockMapper = new GestureMapper('keyboard', mapperCfg);
   const link = new GestureLink(cfg.gesture);
+  const classifier = loadClassifier();
   let ticker: NodeJS.Timeout | null = null;
+
+  const publishScore = (score: GestureScore): void => {
+    bus.publish(
+      {
+        ch: 'log',
+        level: 'debug',
+        module: 'gesture.score',
+        msg: score.accepted ? `${score.label} ${Math.round(score.confidence * 100)}%` : `ignored ${score.label} ${Math.round(score.confidence * 100)}%`,
+        data: { name: score.label, confidence: score.confidence, accepted: score.accepted },
+      },
+      'gesture',
+    );
+  };
 
   const emit = (cmds: ViewerCommand[], origin: string): void => {
     for (const cmd of cmds) {
@@ -62,6 +104,11 @@ export function createGestureModule(ctx: HubContext): HubModule {
     if (ev.t === 'err') log.warn(`gesture board error: ${ev.msg}`);
     if (ev.t !== 'h') log.debug({ ev }, 'gesture event');
     bus.publish({ ch: 'gesture', ev }, 'gesture');
+    if (classifier && ev.t === 'g') {
+      const score = classifier.scoreEvent(ev);
+      if (score) publishScore(score);
+      if (score && !score.accepted) return;
+    }
     emit(boardMapper.handle(ev, Date.now()), 'gesture');
   });
 

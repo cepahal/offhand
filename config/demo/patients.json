@@ -1,0 +1,151 @@
+{
+  "patients": [
+    {
+      "mrn": "123132",
+      "name": "Alex Wu",
+      "age": 47,
+      "sex": "Female",
+      "dob": "1979-03-14",
+      "procedure": "Left frontal craniotomy (tumour resection)",
+      "scheduled": "2026-11-18T08:30:00",
+      "allergies": ["Penicillin (rash)"],
+      "medications": ["Levetiracetam 500 mg twice daily", "Dexamethasone 4 mg twice daily", "Omeprazole 20 mg once daily"],
+      "history": [
+        { "date": "2019-06-12", "text": "Headache clinic visit. No procedure." },
+        { "date": "2024-11-03", "text": "Imaging review recorded a left frontal lesion on this demonstration chart." }
+      ],
+      "studies": [
+        { "id": "wu-t1", "modality": "MRI", "sequence": "T1", "date": "2026-09-02" },
+        { "id": "wu-flair", "modality": "MRI", "sequence": "T2-FLAIR", "date": "2026-09-02" },
+        { "id": "wu-t1c", "modality": "MRI", "sequence": "contrast T1", "date": "2026-10-14" }
+      ],
+      "notes": "Demonstration chart for a scheduled left frontal craniotomy. Not a real patient."
+    },
+    {
+      "mrn": "440218",
+      "name": "Jordan Ellis",
+      "age": 62,
+      "sex": "Male",
+      "dob": "1964-01-09",
+      "procedure": "Right knee arthroscopy",
+      "scheduled": "2026-11-18T10:15:00",
+      "allergies": ["No known allergies"],
+      "medications": ["Ibuprofen 400 mg as needed"],
+      "history": [{ "date": "2025-08-02", "text": "Clinic visit for right knee pain. Demonstration entry." }],
+      "studies": [{ "id": "ellis-xr", "modality": "X-ray", "sequence": "Right knee", "date": "2026-10-01" }],
+      "notes": "Demonstration chart. Not a real patient."
+    },
+    {
+      "mrn": "551904",
+      "name": "Samira Okonkwo",
+      "age": 34,
+      "sex": "Female",
+      "dob": "1992-07-22",
+      "procedure": "Removal of wisdom teeth",
+      "scheduled": "2026-11-18T13:00:00",
+      "allergies": ["Latex (itch)"],
+      "medications": ["Amoxicillin 500 mg three times daily"],
+      "history": [{ "date": "2026-09-15", "text": "Dental assessment. Demonstration entry." }],
+      "studies": [{ "id": "okonkwo-opg", "modality": "OPG", "sequence": "Panoramic", "date": "2026-09-15" }],
+      "notes": "Demonstration chart. Not a real patient."
+    },
+    {
+      "mrn": "228441",
+      "name": "Chris Patel",
+      "age": 58,
+      "sex": "Male",
+      "dob": "1968-11-30",
+      "procedure": "Lumbar decompression",
+      "scheduled": "2026-11-19T07:45:00",
+      "allergies": ["No known allergies"],
+      "medications": ["Paracetamol 1 g four times daily"],
+      "history": [{ "date": "2026-05-19", "text": "Back clinic follow-up. Demonstration entry." }],
+      "studies": [{ "id": "patel-mri", "modality": "MRI", "sequence": "Lumbar spine", "date": "2026-06-02" }],
+      "notes": "Demonstration chart. Not a real patient."
+    },
+    {
+      "mrn": "773015",
+      "name": "Riley Chen",
+      "age": 29,
+      "sex": "Female",
+      "dob": "1997-02-11",
+      "procedure": "ACL reconstruction",
+      "scheduled": "2026-11-19T09:30:00",
+      "allergies": ["No known allergies"],
+      "medications": ["Naproxen 500 mg twice daily"],
+      "history": [{ "date": "2026-10-20", "text": "Sports clinic visit after a knee injury. Demonstration entry." }],
+      "studies": [{ "id": "chen-mri", "modality": "MRI", "sequence": "Left knee", "date": "2026-10-22" }],
+      "notes": "Demonstration chart. Not a real patient."
+    },
+    {
+      "mrn": "610882",
+      "name": "Morgan Blake",
+      "age": 71,
+      "sex": "Male",
+      "dob": "1955-04-03",
+      "procedure": "Left cataract extraction",
+      "scheduled": "2026-11-19T11:20:00",
+      "allergies": ["Iodine (nausea)"],
+      "medications": ["Latanoprost eye drops at night"],
+      "history": [{ "date": "2026-08-08", "text": "Eye clinic visit. Demonstration entry." }],
+      "studies": [{ "id": "blake-bio", "modality": "Biometry", "sequence": "Left eye", "date": "2026-08-08" }],
+      "notes": "Demonstration chart. Not a real patient."
+    },
+    {
+      "mrn": "905331",
+      "name": "Avery Singh",
+      "age": 41,
+      "sex": "Female",
+      "dob": "1985-12-19",
+      "procedure": "Laparoscopic cholecystectomy",
+      "scheduled": "2026-11-20T08:00:00",
+      "allergies": ["No known allergies"],
+      "medications": ["Omeprazole 20 mg once daily"],
+      "history": [{ "date": "2026-07-14", "text": "Surgical clinic visit. Demonstration entry." }],
+      "studies": [{ "id": "singh-us", "modality": "Ultrasound", "sequence": "Abdomen", "date": "2026-07-16" }],
+      "notes": "Demonstration chart. Not a real patient."
+    },
+    {
+      "mrn": "334770",
+      "name": "Quinn Alvarez",
+      "age": 55,
+      "sex": "Male",
+      "dob": "1971-09-27",
+      "procedure": "Thyroidectomy",
+      "scheduled": "2026-11-20T10:40:00",
+      "allergies": ["No known allergies"],
+      "medications": ["Levothyroxine 100 micrograms once daily"],
+      "history": [{ "date": "2026-04-02", "text": "Endocrine clinic visit. Demonstration entry." }],
+      "studies": [{ "id": "alvarez-us", "modality": "Ultrasound", "sequence": "Thyroid", "date": "2026-04-09" }],
+      "notes": "Demonstration chart. Not a real patient."
+    },
+    {
+      "mrn": "882146",
+      "name": "Taylor Brooks",
+      "age": 63,
+      "sex": "Female",
+      "dob": "1963-06-06",
+      "procedure": "Coronary angiogram",
+      "scheduled": "2026-11-20T13:10:00",
+      "allergies": ["Aspirin (wheeze)"],
+      "medications": ["Atorvastatin 40 mg at night"],
+      "history": [{ "date": "2026-09-01", "text": "Cardiology clinic visit. Demonstration entry." }],
+      "studies": [{ "id": "brooks-ecg", "modality": "ECG", "sequence": "12 lead", "date": "2026-09-01" }],
+      "notes": "Demonstration chart. Not a real patient."
+    },
+    {
+      "mrn": "119560",
+      "name": "Jamie Novak",
+      "age": 38,
+      "sex": "Male",
+      "dob": "1988-10-16",
+      "procedure": "Rotator cuff repair",
+      "scheduled": "2026-11-18T15:00:00",
+      "allergies": ["No known allergies"],
+      "medications": ["Paracetamol 1 g four times daily"],
+      "history": [{ "date": "2026-09-28", "text": "Shoulder clinic visit. Demonstration entry." }],
+      "studies": [{ "id": "novak-mri", "modality": "MRI", "sequence": "Right shoulder", "date": "2026-09-30" }],
+      "notes": "Demonstration chart. Not a real patient."
+    }
+  ]
+}

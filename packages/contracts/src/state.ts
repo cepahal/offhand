@@ -4,11 +4,22 @@ import { SlicePlane, ViewMode } from './command.js';
 
 export const CameraState = z
   .object({
-    position: Vec3.describe('Camera position (viewer world coordinates).'),
+    position: Vec3.describe('Camera position (viewer world coordinates: three.js, x = -R, y = S, z = A).'),
     target: Vec3.describe('Orbit target (viewer world coordinates).'),
     up: Vec3.describe('Camera up vector.'),
+    azimuth: z
+      .number()
+      .optional()
+      .describe(
+        'Optional (additive, 1.1.0), derived from position/target by cameraOrbit(): degrees around the patient, 0 = looking from anterior, 90 = from the patient\'s right.',
+      ),
+    elevation: z
+      .number()
+      .optional()
+      .describe('Optional (additive, 1.1.0): degrees above the axial plane, +90 = looking from superior.'),
+    distance: z.number().nonnegative().optional().describe('Optional (additive, 1.1.0): position-to-target distance, mm.'),
   })
-  .describe('Camera pose.');
+  .describe('Camera pose. position/target/up are authoritative; azimuth/elevation/distance are derived.');
 
 export const LayerState = z
   .object({

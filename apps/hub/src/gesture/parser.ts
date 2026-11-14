@@ -1,4 +1,4 @@
-import { GestureEvent } from '@offhand/contracts';
+import { GestureEvent } from '@hoverscan/contracts';
 
 export type ParsedLine =
   | { kind: 'event'; ev: GestureEvent }

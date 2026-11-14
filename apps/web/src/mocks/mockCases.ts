@@ -15,7 +15,7 @@
  * z = Superior), the same space as real case-pack GLBs, so the viewer treats both the same way.
  */
 import * as THREE from 'three';
-import type { CaseFinding, CaseLayer, CasePackManifest } from '@offhand/contracts';
+import type { CaseFinding, CaseLayer, CasePackManifest } from '@hoverscan/contracts';
 import type { AppConfig } from '../viewer/appConfig.js';
 import type { LoadedCase } from '../viewer/Viewer.js';
 import type { LocalCaseSource } from '../app/controller.js';

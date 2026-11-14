@@ -1,0 +1,10 @@
+{
+  "$comment": "Messaging defaults (owner: A). Env vars override: PHOTON_MODE, PHOTON_PROJECT_ID, PHOTON_API_KEY, PHOTON_OPTIN_KEYWORD, PHOTON_MOCK_READ. Personal overrides go in config/photon.local.json (git-ignored).",
+  "mode": "mock",
+  "projectId": "",
+  "optInKeyword": "HOVERSCAN",
+  "optOutKeyword": "STOP",
+  "pendingTtlMs": 60000,
+  "mockRead": true,
+  "recipientsFile": "data/recipients.json"
+}

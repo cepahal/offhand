@@ -7,3 +7,4 @@ export * from './casepack.js';
 export * from './share.js';
 export * from './bus.js';
 export * from './make.js';
+export * from './camera.js';

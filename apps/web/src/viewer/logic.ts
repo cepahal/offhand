@@ -7,7 +7,14 @@
  * With the default camera on +z (in front of the patient) the patient faces the viewer and the
  * patient's right appears on the viewer's left, like standing in front of a person.
  */
-import type { CaseFinding, CaseLayer } from '@offhand/contracts';
+import type {
+  CaseFinding,
+  CaseLayer,
+  CasePackManifest,
+  CaseTimepoint,
+  CaseVolume,
+  SlicePlane,
+} from '@hoverscan/contracts';
 
 export type Vec3 = [number, number, number];
 
@@ -63,6 +70,43 @@ export function clamp(v: number, lo: number, hi: number): number {
 /** Map a 0..1 scrub value onto an index 0..count-1. */
 export function scrubToIndex(value: number, count: number): number {
   return count <= 1 ? 0 : Math.round(clamp(value, 0, 1) * (count - 1));
+}
+
+/** Inverse of scrubToIndex: the scrub value that selects `index` of `count`. */
+export function indexToScrub(index: number, count: number): number {
+  return count <= 1 ? 0 : clamp(index, 0, count - 1) / (count - 1);
+}
+
+/** Timepoints in display order. */
+export function orderedTimepoints(m: Pick<CasePackManifest, 'timepoints'>): CaseTimepoint[] {
+  return (m.timepoints ?? []).slice().sort((a, b) => a.order - b.order);
+}
+
+/** A layer tied to a timepoint is shown only at that timepoint; untied layers always. */
+export function layerAtTimepoint(layer: Pick<CaseLayer, 'timepointId'>, timepointId: string | undefined): boolean {
+  return !layer.timepointId || !timepointId || layer.timepointId === timepointId;
+}
+
+/** Slice-panel volume for the timepoint at `index` (falls back to an untied volume, then the first). */
+export function volumeForTimepoint(
+  m: Pick<CasePackManifest, 'timepoints' | 'volumes'>,
+  index: number,
+): CaseVolume | undefined {
+  const tp = orderedTimepoints(m)[index]?.id;
+  return m.volumes.find((v) => tp && v.timepointId === tp) ?? m.volumes.find((v) => !v.timepointId) ?? m.volumes[0];
+}
+
+/**
+ * Voxel axis a slice plane steps along, for RAS-ordered volumes (the pipeline writes every
+ * volume in canonical RAS): sagittal moves along R (i), coronal along A (j), axial along S (k).
+ */
+export const PLANE_AXIS: Record<SlicePlane, 0 | 1 | 2> = { sagittal: 0, coronal: 1, axial: 2 };
+
+/** Viewport banner: synthetic and mock cases are always bannered; real case packs are not. */
+export function caseBanner(m: Pick<CasePackManifest, 'app'> | null, mock: boolean): string | null {
+  if (!m) return null;
+  if (m.app === 'test-pattern') return 'TEST PATTERN — NOT ANATOMY';
+  return mock ? 'MOCK — NOT ANATOMY' : null;
 }
 
 /** Clip height along an axis: scrub 1 shows everything, scrub 0 hides everything. */

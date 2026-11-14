@@ -29,7 +29,7 @@ def load_schema() -> dict[str, Any]:
     p = schema_path()
     if not p.exists():
         raise FileNotFoundError(
-            f"{p} not found. Generate it with: pnpm --filter @offhand/contracts gen:schema"
+            f"{p} not found. Generate it with: pnpm --filter @hoverscan/contracts gen:schema"
         )
     return json.loads(p.read_text(encoding="utf-8"))
 
@@ -46,6 +46,9 @@ def validate_manifest(manifest: dict[str, Any], case_dir: Path | None = None) ->
     tp_ids = {t["id"] for t in manifest.get("timepoints") or []}
     if len(layer_ids) != len(manifest["layers"]):
         errors.append("layers: duplicate layer id")
+    for layer in manifest["layers"]:
+        if "timepointId" in layer and layer["timepointId"] not in tp_ids:
+            errors.append(f"layer {layer['id']}: unknown timepointId {layer['timepointId']}")
     for f in manifest["findings"]:
         if "layerId" in f and f["layerId"] not in layer_ids:
             errors.append(f"finding {f['id']}: unknown layerId {f['layerId']}")
@@ -92,9 +95,14 @@ def write_manifest(manifest: dict[str, Any], case_dir: Path) -> list[str]:
 
 
 def layer_entry(
-    id: str, label: str, color: str, default_opacity: float, peel_order: int
+    id: str,
+    label: str,
+    color: str,
+    default_opacity: float,
+    peel_order: int,
+    timepoint_id: str | None = None,
 ) -> dict[str, Any]:
-    return {
+    entry: dict[str, Any] = {
         "id": id,
         "label": label,
         "file": f"layers/{id}.glb",
@@ -103,3 +111,6 @@ def layer_entry(
         "peelOrder": peel_order,
         "kind": "surface",
     }
+    if timepoint_id is not None:
+        entry["timepointId"] = timepoint_id
+    return entry

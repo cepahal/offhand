@@ -12,7 +12,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@offhand/contracts": "workspace:*",
+    "@hoverscan/contracts": "workspace:*",
+    "@niivue/niivue": "^0.69.0",
     "preact": "^11.2.0",
     "three": "^0.187.0"
   },

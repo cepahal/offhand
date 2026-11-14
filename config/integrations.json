@@ -1,0 +1,36 @@
+{
+  "$comment": "Clinic-software integrations (owner: C). Each is off unless its env var is set to mock or live; 'mode' here is the default and must stay off. URLs can be overridden with the *_URL env vars; keys and passwords come only from env. Patient mapping for opendental: config/patients.local.json (git-ignored), see config/patients.example.json.",
+  "integrations": {
+    "logonly": {
+      "env": "INTEG_LOGONLY",
+      "mode": "off",
+      "apps": ["chairside", "kneeview", "neuroview", "jawline"]
+    },
+    "opendental": {
+      "env": "INTEG_OPENDENTAL",
+      "mode": "off",
+      "apps": ["chairside", "jawline"],
+      "url": "https://api.opendental.com/api/v1",
+      "patientsFile": "config/patients.local.json"
+    },
+    "slicer": {
+      "env": "INTEG_SLICER",
+      "mode": "off",
+      "apps": ["kneeview", "neuroview"],
+      "url": "http://localhost:2016",
+      "sliceMaxIndex": { "axial": 255, "coronal": 255, "sagittal": 255 }
+    },
+    "orthanc": {
+      "env": "INTEG_ORTHANC",
+      "mode": "off",
+      "apps": ["kneeview", "neuroview"],
+      "url": "http://localhost:8042/dicom-web"
+    },
+    "clinicinbox": {
+      "env": "INTEG_CLINIC_INBOX",
+      "mode": "off",
+      "apps": ["neuroview"],
+      "file": "data/clinic-inbox.jsonl"
+    }
+  }
+}

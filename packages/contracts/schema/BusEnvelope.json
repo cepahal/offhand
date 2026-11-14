@@ -1,7 +1,7 @@
 {
-  "$id": "offhand/BusEnvelope.json",
+  "$id": "hoverscan/BusEnvelope.json",
   "title": "BusEnvelope",
-  "x-contracts-version": "1.0.0",
+  "x-contracts-version": "1.2.0",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "oneOf": [
     {
@@ -914,7 +914,7 @@
                   "items": false,
                   "minItems": 3,
                   "maxItems": 3,
-                  "description": "Camera position (viewer world coordinates)."
+                  "description": "Camera position (viewer world coordinates: three.js, x = -R, y = S, z = A)."
                 },
                 "target": {
                   "type": "array",
@@ -951,6 +951,19 @@
                   "minItems": 3,
                   "maxItems": 3,
                   "description": "Camera up vector."
+                },
+                "azimuth": {
+                  "description": "Optional (additive, 1.1.0), derived from position/target by cameraOrbit(): degrees around the patient, 0 = looking from anterior, 90 = from the patient's right.",
+                  "type": "number"
+                },
+                "elevation": {
+                  "description": "Optional (additive, 1.1.0): degrees above the axial plane, +90 = looking from superior.",
+                  "type": "number"
+                },
+                "distance": {
+                  "description": "Optional (additive, 1.1.0): position-to-target distance, mm.",
+                  "type": "number",
+                  "minimum": 0
                 }
               },
               "required": [
@@ -958,7 +971,7 @@
                 "target",
                 "up"
               ],
-              "description": "Camera pose."
+              "description": "Camera pose. position/target/up are authoritative; azimuth/elevation/distance are derived."
             },
             "layers": {
               "type": "array",
@@ -1100,7 +1113,7 @@
                             "items": false,
                             "minItems": 3,
                             "maxItems": 3,
-                            "description": "Camera position (viewer world coordinates)."
+                            "description": "Camera position (viewer world coordinates: three.js, x = -R, y = S, z = A)."
                           },
                           "target": {
                             "type": "array",
@@ -1137,6 +1150,19 @@
                             "minItems": 3,
                             "maxItems": 3,
                             "description": "Camera up vector."
+                          },
+                          "azimuth": {
+                            "description": "Optional (additive, 1.1.0), derived from position/target by cameraOrbit(): degrees around the patient, 0 = looking from anterior, 90 = from the patient's right.",
+                            "type": "number"
+                          },
+                          "elevation": {
+                            "description": "Optional (additive, 1.1.0): degrees above the axial plane, +90 = looking from superior.",
+                            "type": "number"
+                          },
+                          "distance": {
+                            "description": "Optional (additive, 1.1.0): position-to-target distance, mm.",
+                            "type": "number",
+                            "minimum": 0
                           }
                         },
                         "required": [
@@ -1144,7 +1170,7 @@
                           "target",
                           "up"
                         ],
-                        "description": "Camera pose."
+                        "description": "Camera pose. position/target/up are authoritative; azimuth/elevation/distance are derived."
                       },
                       "layers": {
                         "type": "array",
@@ -1512,6 +1538,82 @@
       "properties": {
         "ch": {
           "type": "string",
+          "const": "verified"
+        },
+        "ev": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "Text that was checked."
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "verified",
+                "needs_review",
+                "blocked"
+              ],
+              "description": "Check result. Only \"verified\" may be sent to a patient."
+            },
+            "findings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "detail": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "detail"
+                ],
+                "description": "One check finding."
+              },
+              "description": "Why the status was given."
+            },
+            "policyId": {
+              "type": "string",
+              "description": "Policy used."
+            },
+            "checkedAt": {
+              "type": "string",
+              "description": "ISO timestamp."
+            },
+            "checker": {
+              "description": "Optional (additive, 1.1.0): \"live\" = Bedrock Automated Reasoning, \"mock\" = fixture results.",
+              "type": "string",
+              "enum": [
+                "live",
+                "mock"
+              ]
+            }
+          },
+          "required": [
+            "text",
+            "status",
+            "findings",
+            "policyId",
+            "checkedAt"
+          ],
+          "description": "Text after a policy check."
+        }
+      },
+      "required": [
+        "ch",
+        "ev"
+      ],
+      "description": "Fact-check result for an explain command (additive, 1.1.0). Only status \"verified\" may be shared."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "ch": {
+          "type": "string",
           "const": "voice"
         },
         "ev": {
@@ -1530,6 +1632,10 @@
             },
             "text": {
               "description": "Transcript/tool/error text.",
+              "type": "string"
+            },
+            "tool": {
+              "description": "Optional (additive, 1.1.0): tool name, for tool events.",
               "type": "string"
             }
           },

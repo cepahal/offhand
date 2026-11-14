@@ -1,4 +1,4 @@
-import { BusEnvelope, type ViewerState } from '@offhand/contracts';
+import { BusEnvelope, type ViewerState } from '@hoverscan/contracts';
 import type { SessionLog } from '../log/logger.js';
 
 export type BusListener = (env: BusEnvelope, origin: string) => void;

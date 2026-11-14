@@ -37,6 +37,12 @@ export function GestureHud() {
         <div>
           <div>
             <b>{g ? (GESTURE_TEXT[g.name as keyof typeof GESTURE_TEXT] ?? g.name) : 'No gesture yet'}</b>
+            {g?.confidence != null && (
+              <span class="small">
+                {' '}
+                {Math.round(g.confidence * 100)}%{g.accepted === false ? ' ignored' : ''}
+              </span>
+            )}
           </div>
           <div class="small">
             Mode: <span class={`mode-badge ${mode}`}>{mode.toUpperCase()}</span>

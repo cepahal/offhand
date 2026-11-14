@@ -1,0 +1,10 @@
+{
+  "$comment": "AI module defaults (owner: A). Env vars override: AI_MODE, AWS_REGION, AI_CONVERSE_MODEL_ID, AI_GUARDRAIL_ID, AI_GUARDRAIL_VERSION. Put personal overrides in config/ai.local.json (git-ignored).",
+  "mode": "mock",
+  "region": "us-east-2",
+  "converseModelId": "",
+  "guardrailId": "",
+  "guardrailVersion": "",
+  "policiesDir": "policies",
+  "casepackDir": "casepacks"
+}

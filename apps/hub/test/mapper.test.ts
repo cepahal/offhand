@@ -1,4 +1,4 @@
-import type { GestureEvent, ViewerCommand } from '@offhand/contracts';
+import type { GestureEvent, ViewerCommand } from '@hoverscan/contracts';
 import { describe, expect, it } from 'vitest';
 import { GestureMapper } from '../src/gesture/mapper.js';
 
@@ -8,12 +8,12 @@ const types = (cmds: ViewerCommand[]) => cmds.map((c) => c.type);
 
 describe('GestureMapper: default map', () => {
   const cases: Array<[Parameters<typeof g>[0], Record<string, unknown>]> = [
-    ['left', { type: 'rotate', yawDeg: -30 }],
-    ['right', { type: 'rotate', yawDeg: 30 }],
-    ['up', { type: 'rotate', pitchDeg: 20 }],
-    ['down', { type: 'rotate', pitchDeg: -20 }],
-    ['forward', { type: 'zoom', factor: 1.25 }],
-    ['backward', { type: 'zoom', factor: 0.8 }],
+    ['left', { type: 'rotate', yawDeg: -10 }],
+    ['right', { type: 'rotate', yawDeg: 10 }],
+    ['up', { type: 'rotate', pitchDeg: 8 }],
+    ['down', { type: 'rotate', pitchDeg: -8 }],
+    ['forward', { type: 'zoom', factor: 1.08 }],
+    ['backward', { type: 'zoom', factor: 1 / 1.08 }],
     ['cw', { type: 'peel', dir: 'out' }],
     ['ccw', { type: 'peel', dir: 'in' }],
   ];
@@ -42,9 +42,16 @@ describe('GestureMapper: debounce', () => {
   it('drops a second gesture inside the window and accepts after it', () => {
     const m = new GestureMapper('gesture', { debounceMs: 250 });
     expect(m.handle(g('left'), 1000)).toHaveLength(1);
-    expect(m.handle(g('right'), 1100)).toHaveLength(0);
-    expect(m.handle(g('right'), 1249)).toHaveLength(0);
-    expect(m.handle(g('right'), 1250)).toHaveLength(1);
+    expect(m.handle(g('left'), 1100)).toHaveLength(0);
+    expect(m.handle(g('left'), 1249)).toHaveLength(0);
+    expect(m.handle(g('left'), 1250)).toHaveLength(1);
+  });
+
+  it('drops the opposite rebound swipe for 650 ms, then accepts it', () => {
+    const m = new GestureMapper('gesture', { debounceMs: 250 });
+    expect(m.handle(g('left'), 1000)).toHaveLength(1);
+    expect(m.handle(g('right'), 1300)).toHaveLength(0);
+    expect(m.handle(g('right'), 1650)).toHaveLength(1);
   });
 
   it('ignores heartbeats and errors', () => {

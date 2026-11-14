@@ -9,20 +9,28 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "pnpm --filter @offhand/contracts build && concurrently -k -n hub,web -c blue,magenta \"pnpm --filter @offhand/hub dev\" \"pnpm --filter @offhand/web dev\"",
+    "dev": "pnpm --filter @hoverscan/contracts build && HOVERSCAN_RUN=mock concurrently -k -n hub,web -c blue,magenta \"pnpm --filter @offhand/hub dev\" \"pnpm --filter @offhand/web dev\"",
     "build": "pnpm -r build",
     "start": "pnpm --filter @offhand/hub start",
+    "check": "pnpm --filter @hoverscan/contracts build && pnpm typecheck && pnpm lint && pnpm test && pnpm --filter @hoverscan/contracts schema:check && pnpm --filter @offhand/hub test:failclosed",
     "test": "pnpm -r test",
+    "test:demo": "playwright test --config playwright.demo.config.ts",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "gen:schema": "pnpm --filter @offhand/contracts gen:schema",
+    "gen:schema": "pnpm --filter @hoverscan/contracts gen:schema",
     "replay": "pnpm --filter @offhand/hub replay",
     "gesture:monitor": "pnpm --filter @offhand/hub gesture:monitor",
-    "testpattern": "uv run --project pipeline offhand-pipeline testpattern --out casepacks/test-pattern/tp-001"
+    "record:gestures": "pnpm --filter @offhand/hub record:gestures",
+    "testpattern": "uv run --project pipeline offhand-pipeline testpattern --out casepacks/test-pattern/tp-001",
+    "build:neuroview": "uv run --project pipeline offhand-pipeline isbi2015 && uv run --project pipeline offhand-pipeline validate casepacks/neuroview/*",
+    "start:live": "pnpm --filter @hoverscan/contracts build && pnpm --filter @offhand/web build && HOVERSCAN_RUN=live pnpm --filter @offhand/hub start:live",
+    "e2e:live": "pnpm --filter @hoverscan/contracts build && HOVERSCAN_RUN=live pnpm --filter @offhand/hub e2e:live",
+    "photon:listen": "pnpm --filter @offhand/hub exec tsx scripts/photon-listen.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.0",
     "concurrently": "^10.0.7",
     "eslint": "^10.14.0",
     "globals": "^17.14.0",

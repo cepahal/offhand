@@ -1,7 +1,8 @@
-/** Mounts the three.js Viewer and draws the overlays (test-pattern / mock banners, provenance). */
+/** Mounts the three.js Viewer and draws the overlays (test-pattern / mock banners). The source credit is in the top bar. */
 import { useEffect, useRef } from 'preact/hooks';
 import { controller } from '../app/controller.js';
 import { ui, useStore } from '../app/store.js';
+import { caseBanner } from './logic.js';
 import { Viewer } from './Viewer.js';
 
 export function ViewerPane() {
@@ -21,13 +22,7 @@ export function ViewerPane() {
   }, []);
 
   const m = s.manifest;
-  const banner = !m
-    ? null
-    : m.app === 'test-pattern'
-      ? 'TEST PATTERN — NOT ANATOMY'
-      : s.mock
-        ? 'MOCK — NOT ANATOMY'
-        : null;
+  const banner = caseBanner(m, s.mock);
   const focused = m?.findings.find((f) => f.id === s.view?.focusedFindingId);
 
   return (
@@ -53,16 +48,11 @@ export function ViewerPane() {
           {focused && <div style={{ color: '#ffff00' }}>● {focused.label}</div>}
         </div>
       )}
-      {m && (
-        <div class="overlay bl small" style={{ color: '#c0c0c0', fontWeight: 'normal' }}>
-          Source: {m.source.dataset} · {m.source.license}
-        </div>
-      )}
       {!m && !s.loading && (
         <div class="empty">
           No case loaded.
           <br />
-          File → Open case... (or press O)
+          Choose a case in the top bar.
         </div>
       )}
       {s.loading && <div class="empty">{s.loading}</div>}

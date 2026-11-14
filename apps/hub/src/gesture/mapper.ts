@@ -5,7 +5,7 @@ import {
   type GestureName,
   type ViewerCommand,
   type ViewerCommandBody,
-} from '@offhand/contracts';
+} from '@hoverscan/contracts';
 
 export interface MapperConfig {
   /** Ignore a gesture that arrives within this many ms of the previous accepted one. */
@@ -31,9 +31,9 @@ export interface MapperConfig {
 
 export const DEFAULT_MAPPER_CONFIG: MapperConfig = {
   debounceMs: 250,
-  yawStepDeg: 12,
-  pitchStepDeg: 10,
-  zoomFactor: 1.25,
+  yawStepDeg: 10,
+  pitchStepDeg: 8,
+  zoomFactor: 1.08,
   hoverHoldMs: 1000,
   hoverStillTolerance: 0.06,
   hoverLostMs: 400,

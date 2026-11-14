@@ -4,3 +4,8 @@ packages:
 onlyBuiltDependencies:
   - "@serialport/bindings-cpp"
   - esbuild
+# The Photon SDK pulls in protobufjs, whose postinstall is not needed at runtime.
+ignoredBuiltDependencies:
+  - protobufjs
+overrides:
+  "@opentelemetry/api": ~1.9.0

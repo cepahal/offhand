@@ -1,16 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
-import { CONTRACTS_VERSION, type BusEnvelope } from '@offhand/contracts';
+import { CONTRACTS_VERSION, type BusEnvelope } from '@hoverscan/contracts';
 import Fastify, { LogController, type FastifyBaseLogger } from 'fastify';
 import type { WebSocket } from 'ws';
 import { Bus } from './bus/bus.js';
-import { loadConfig } from './config.js';
+import { loadConfig, RUN_MODE } from './config.js';
+import { liveStartupGate } from './live/startup.js';
 import { createLogger, SessionLog } from './log/logger.js';
 import { createModules } from './modules.js';
 
+if (RUN_MODE === 'live') await liveStartupGate();
 const cfg = loadConfig();
 const log = createLogger();
 for (const d of [cfg.casepackDir, cfg.logDir, cfg.snapshotDir]) mkdirSync(d, { recursive: true });
@@ -36,6 +38,59 @@ app.get('/api/health', async () => ({
   modules: Object.fromEntries(modules.map((m) => [m.name, m.health()])),
 }));
 
+// ---- voice action (OpenAI function call; the browser validates the shape again) ------------
+app.post<{ Body: { transcript?: string; patients?: { name: string; mrn: string }[] } }>('/api/voice/action', async (req) => {
+  const transcript = req.body?.transcript?.trim() ?? '';
+  const people = Array.isArray(req.body?.patients) ? req.body.patients : [];
+  const key = process.env.OPENAI_API_KEY;
+  if (!key || !transcript) return { action: 'ask', question: 'OpenAI is not configured. Nothing was changed.' };
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: `Patients: ${people.map((p) => `${p.name} MRN ${p.mrn}`).join('; ')}. Use the scanner_action tool. Dental commands: show_patient, change_prescription (value is the medication), add_note (text), message_patient (text), message_hospital (text), view_scans. If the medication or the command is unclear, action ask. Do not invent an action outside the enum.` },
+        { role: 'user', content: transcript },
+      ],
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'scanner_action',
+            parameters: {
+              type: 'object',
+              properties: {
+                action: { enum: ['change_medication', 'view_history', 'view_mri', 'add_note', 'send_instructions', 'show_patient', 'change_prescription', 'message_patient', 'message_hospital', 'view_scans', 'ask'] },
+                patient: { type: 'string' },
+                value: { type: 'string' },
+                text: { type: 'string' },
+                question: { type: 'string' },
+              },
+              required: ['action'],
+            },
+          },
+        },
+      ],
+    }),
+  });
+  if (!response.ok) return { action: 'ask', question: 'The model did not answer. Nothing was changed.' };
+  const body = (await response.json()) as {
+    choices?: { message?: { content?: string | null; tool_calls?: { function?: { arguments?: string } }[] } }[];
+  };
+  const message = body.choices?.[0]?.message;
+  const args = message?.tool_calls?.[0]?.function?.arguments;
+  if (args) {
+    try {
+      return JSON.parse(args) as unknown;
+    } catch {
+      return { content: args };
+    }
+  }
+  if (message?.content) return { content: message.content };
+  return { action: 'ask', question: 'The model returned no action. Nothing was changed.' };
+});
+
 // ---- snapshots (capture command) ----------------------------------------------------------
 app.post<{ Body: { requestId?: string; dataUrl?: string } }>('/api/snapshots', async (req, reply) => {
   const { requestId, dataUrl } = req.body ?? {};
@@ -56,7 +111,12 @@ for (const m of modules) await m.registerRoutes?.(app);
 // ---- WebSocket bus ------------------------------------------------------------------------
 const clients = new Map<string, WebSocket>();
 
+/** Clients render these as facts, so they are forwarded only from the module that owns them. */
+const OWNER: Partial<Record<BusEnvelope['ch'], string>> = { verified: 'ai', share: 'messaging' };
+
 bus.subscribe((env: BusEnvelope, origin: string) => {
+  const owner = OWNER[env.ch];
+  if (owner && origin !== owner) return;
   const text = JSON.stringify(env);
   for (const [id, ws] of clients) {
     // The viewer that produced a state does not need it echoed back.
@@ -96,6 +156,8 @@ app.get('/ws', { websocket: true }, (socket) => {
 // ---- built viewer (production); in dev Vite serves the viewer and proxies /api + /ws -------
 if (existsSync(cfg.webDist)) {
   await app.register(fastifyStatic, { root: cfg.webDist, prefix: '/', decorateReply: false });
+  const indexHtml = readFileSync(join(cfg.webDist, 'index.html'));
+  app.get('/debug', async (_req, reply) => reply.type('text/html; charset=utf-8').send(indexHtml));
 }
 
 // ---- start / stop -------------------------------------------------------------------------
@@ -107,7 +169,7 @@ for (const m of modules) {
   }
 }
 await app.listen({ port: cfg.port, host: cfg.bind });
-log.info(`offhand hub on http://${cfg.bind}:${cfg.port}  (session log: ${session.path})`);
+log.info(`hoverscan hub (${RUN_MODE ?? 'per-module modes'}) on http://${cfg.bind}:${cfg.port}  (session log: ${session.path})`);
 
 let stopping = false;
 const shutdown = async (sig: string): Promise<void> => {

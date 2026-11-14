@@ -1,7 +1,7 @@
 # offhand gesture board firmware
 
 One Arduino sketch: `offhand_gesture/offhand_gesture.ino` (ESP32 + PAJ7620U2).
-TO RUN: cd C:\Users\grant\Downloads\hoverscan\offhand; corepack pnpm dev
+
 ## Wiring
 
 | PAJ7620U2 breakout | ESP32 DevKit |

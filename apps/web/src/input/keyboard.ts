@@ -10,7 +10,7 @@
  *   r reset   b bookmark   c capture   n / p next / prev finding   m orbit/scrub
  *   , / .  scrub -/+       1..9 toggle layer   o open case   s slice panel   ? keys   Esc close
  */
-import type { GestureName, ViewerCommandBody } from '@offhand/contracts';
+import type { GestureName, ViewerCommandBody } from '@hoverscan/contracts';
 import type { Controller } from '../app/controller.js';
 import { ui } from '../app/store.js';
 
@@ -32,17 +32,17 @@ const GESTURE_KEYS: Record<string, GestureName> = {
 function offlineGesture(g: GestureName): ViewerCommandBody | null {
   switch (g) {
     case 'left':
-      return { type: 'rotate', yawDeg: -30 };
+      return { type: 'rotate', yawDeg: -10 };
     case 'right':
-      return { type: 'rotate', yawDeg: 30 };
+      return { type: 'rotate', yawDeg: 10 };
     case 'up':
-      return { type: 'rotate', pitchDeg: 20 };
+      return { type: 'rotate', pitchDeg: 8 };
     case 'down':
-      return { type: 'rotate', pitchDeg: -20 };
+      return { type: 'rotate', pitchDeg: -8 };
     case 'forward':
-      return { type: 'zoom', factor: 1.25 };
+      return { type: 'zoom', factor: 1.08 };
     case 'backward':
-      return { type: 'zoom', factor: 0.8 };
+      return { type: 'zoom', factor: 1 / 1.08 };
     case 'cw':
       return { type: 'peel', dir: 'out' };
     case 'ccw':

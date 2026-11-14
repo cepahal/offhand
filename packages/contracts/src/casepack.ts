@@ -18,6 +18,10 @@ export const CaseLayer = z
     defaultOpacity: z.number().min(0).max(1).describe('Initial opacity.'),
     peelOrder: z.number().int().nonnegative().describe('0 = outermost (peeled first).'),
     kind: z.literal('surface').describe('Layer kind. Only surfaces for now.'),
+    timepointId: z
+      .string()
+      .optional()
+      .describe('Additive 1.2.0. Timepoint this layer belongs to; shown only at that timepoint. Absent = all.'),
   })
   .describe('One surface mesh layer.');
 
