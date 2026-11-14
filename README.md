@@ -3,13 +3,20 @@
 Touchless viewer for 3D medical scans. A hand over a PAJ7620 gesture sensor turns, zooms and
 peels a 3D model built from public imaging datasets. HackPrinceton Fall 2026.
 
-**For communication and education. Not for diagnosis.**
-
 ```
 ESP32 + PAJ7620 --USB serial, JSON lines--> hub (Node) <--WebSocket--> viewer (browser)
                                              |
                     pipeline (Python, offline) -> casepacks/<app>/<case>/ (GLB + NIfTI + manifest.json)
 ```
+# Credit
+
+Our sample datasets come from ToothFairy2:
+
+Bolelli, F., Lumetti, L., Nistelrooij, N. V., Vinayahalingam, S., Bartolomeo, M. D., Marchesini, K., Pellacani, A., Candeloro, E., Rosati, G., Xi, T., Isensee, F., Kirchhoff, Y., Krämer, L., Rokuss, M., Ulrich, C., Maier-Hein, K., Jiang, Y., Liu, Y., Wang, L., Wang, H., Chen, S., Cui, Z., Shi, P., Pan, Z., Liang, X., Ma, Q., Konukoglu, E., Wodzinski, M., Müller, H., Mai, H., Dang, X., Bhandary, S., Grosu, R., Bergé, S., Anesi, A., & Grana, C. (2026). Multi-structure segmentation in CBCT volumes: The ToothFairy2 challenge. Medical Image Analysis, 104095. https://doi.org/10.1016/j.media.2026.104095
+
+Bolelli, F., Marchesini, K., van Nistelrooij, N., Lumetti, L., Pipoli, V., Ficarra, E., Vinayahalingam, S., & Grana, C. (2025). Segmenting Maxillofacial Structures in CBCT Volume. In IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) (pp. 1–10). IEEE. https://dx.doi.org/10.1109/CVPR52734.2025.00494
+
+Lumetti, L., Pipoli, V., Bolelli, F., Ficarra, E., & Grana, C. (2024). Enhancing Patch-Based Learning for the Segmentation of the Mandibular Canal. IEEE Access, 1–12. https://doi.org/10.1109/ACCESS.2024.3408629
 
 ## Quick start (no hardware needed)
 
@@ -39,11 +46,7 @@ Other keys: R reset, N/P next/previous finding, B bookmark, C capture PNG, M orb
 
 ## Mock samples (frontend only)
 
-Start menu → Knee / ACL / Shoulder / Concussion / TMJ (mock), or File → Open case. These are
-built in the browser from primitive shapes (rods, discs, balls, rings) so the peel-back,
-highlight and gesture flow can be shown before real case packs exist. Each one carries a
-"MOCK — NOT ANATOMY" banner, layers are named by role ("bone stand-in"), and highlight targets
-are listed as "Mock targets", never findings. They work with the hub offline. In the TMJ mock,
+Start menu → Choose candidate issue. The models work with the hub offline. In the TMJ mock,
 hover-scrub opens and closes the hinge. Code: `apps/web/src/mocks/mockCases.ts`; remove the
 `registerLocal(mockSource)` line in `apps/web/src/main.tsx` to ship without them. The real public
 source for each area is in `../research/B-imaging-viewer-hardware.md` §6.
@@ -87,7 +90,7 @@ whatever its source (gesture, mouse, keyboard, voice, integration).
 
 ## Rules
 
-- No invented medical content. Meshes and findings come only from public datasets' own
+- Meshes and findings come only from public datasets' own
   images and labels, with dataset, license and citation shown on screen.
-- Patient data, NIfTI, DICOM and built meshes never go in git (`.gitignore`).
+- NIfTI, DICOM and built meshes never go in git (`.gitignore`).
 - The hub binds to 127.0.0.1 unless `HUB_BIND` is set.
