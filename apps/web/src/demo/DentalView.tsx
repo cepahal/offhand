@@ -61,11 +61,12 @@ export function DentalView() {
   const [scanPoint, setScanPoint] = useState<ScanPoint | null>(null);
   const [board, setBoard] = useState<Board>('idle');
   const [cue, setCue] = useState<GestureCue | null>(null);
+  /** Speak-hold progress 0..1 while the hand is held still over the board. */
+  const [holding, setHolding] = useState(0);
   const [inspector, setInspector] = useState(true);
   const [source, setSource] = useState('ToothFairy2 · research training data');
   const viewer = useRef<StageControl | null>(null);
   const armRef = useRef<() => void>(() => {});
-  const pendingRef = useRef(false);
   const active = DENTAL_TRAININGS[training] ?? DENTAL_TRAININGS[0]!;
   const caseRef = useRef(active.n);
   const scanPointRef = useRef<ScanPoint | null>(scanPoint);
@@ -99,6 +100,7 @@ export function DentalView() {
     let hubOpen = false;
     let lastBeat = -Infinity;
     let cueId = 0;
+    let holdTimer = 0;
     const refresh = () => setBoard(!hubOpen ? 'offline' : Date.now() - lastBeat < HEARTBEAT_STALE_MS ? 'live' : 'idle');
     const timer = window.setInterval(refresh, 1000);
     client.onStatus((status) => {
@@ -114,7 +116,15 @@ export function DentalView() {
         return;
       }
       if (ev.t === 'h') {
-        intent.hover(ev);
+        const hover = intent.hover(ev);
+        window.clearTimeout(holdTimer);
+        if (hover?.kind === 'holding') {
+          setHolding(Math.round(hover.progress * 20) / 20);
+          holdTimer = window.setTimeout(() => setHolding(0), 250); // hand left: ring clears
+        } else {
+          setHolding(0);
+        }
+        if (hover?.kind === 'speak') armRef.current();
         return;
       }
       if (ev.t !== 'g') return;
@@ -127,11 +137,7 @@ export function DentalView() {
         return;
       }
       const action = decision.action;
-      if (action.type === 'wake') {
-        // The voice bar shows listening/confirm; no cue in the viewport.
-        armRef.current();
-        return;
-      }
+      if (action.type === 'wake') return; // wave no longer speaks; the 1.5 s hover does
       if (action.type === 'peel') {
         const out = action.dir === 'out';
         setCue({ id: cueId, glyph: out ? 'peel-out' : 'peel-in', label: out ? 'Peel layer' : 'Restore layer', streak: decision.streak });
@@ -182,7 +188,6 @@ export function DentalView() {
     },
   });
   armRef.current = hack.arm;
-  pendingRef.current = hack.pending !== null;
 
   const caseNotes = notesFor(notes, active.n);
   const caseCandidates = DENTAL_CANDIDATE_GROUPS[active.n];
@@ -221,7 +226,7 @@ export function DentalView() {
           </span>
           <span class={`status status-voice phase-${phaseClass(hack.phase)}`} title="Voice assistant">
             <IconMic size={18} />
-            <span><b>{hack.phase === 'Idle' ? 'Voice ready' : hack.phase}</b><small>Wave to talk</small></span>
+            <span><b>{hack.phase === 'Idle' ? 'Voice ready' : hack.phase}</b><small>Hover to talk</small></span>
           </span>
           <span class="tb-sep" />
           <button type="button" class="btn" onClick={() => openPatientWindow()}><IconRecord size={17} />Patient record</button>
@@ -290,7 +295,7 @@ export function DentalView() {
             <InfoPage page={page} clinic={clinic} board={board} />
           )}
           <div class="dock">
-            <CommandBar phase={hack.phase} command={hack.command} heard={hack.heard} awaiting={hack.pending !== null} target={page === 'view' ? (scanPoint ? pinLabel(scanPoint) : focusName(active)) : null} off={!!scanPoint && offFocus(active, scanPoint.structure)} />
+            <CommandBar phase={hack.phase} command={hack.command} heard={hack.heard} awaiting={hack.pending !== null} holding={holding} target={page === 'view' ? (scanPoint ? pinLabel(scanPoint) : focusName(active)) : null} off={!!scanPoint && offFocus(active, scanPoint.structure)} />
           </div>
           {hack.patientMessage.startsWith('Delivered') && (
             <div class="notice" role="status">
@@ -350,22 +355,27 @@ function phaseClass(phase: HackPhase): string {
  * The voice/command bar. Sized to read from the chair: words appear as they are recognised,
  * each one easing in, so it is obvious the system is hearing you.
  */
-function CommandBar({ phase, command, heard, awaiting, target, off }: { phase: HackPhase; command: string; heard: string; awaiting: boolean; target: string | null; off: boolean }) {
+function CommandBar({ phase, command, heard, awaiting, target, off, holding }: { phase: HackPhase; command: string; heard: string; awaiting: boolean; target: string | null; off: boolean; holding: number }) {
   const state = phaseClass(phase);
   const listening = phase === 'Listening';
   const words = listening && heard ? heard.split(/\s+/) : [];
-  const hint = awaiting ? 'Wave to confirm' : listening ? 'Pause to finish' : state === 'working' ? 'Working' : 'Wave to speak';
+  const hint = holding > 0 ? (awaiting ? 'Keep holding to confirm' : 'Keep holding…') : awaiting ? 'Hover to confirm' : listening ? 'Pause to finish' : state === 'working' ? 'Working' : 'Hover to speak';
   const pinTo = listening && target ? <span class={`cmd-target ${off ? 'off' : ''}`}>Notes pin to: {target}{off ? ' — not on focus tooth' : ''}</span> : null;
   return (
     <div class={`cmd cmd-${state}`} role="status" aria-live="polite">
-      <span class="cmd-orb" aria-hidden="true"><i /><i /><i /><i /></span>
+      <span class="cmd-orb" aria-hidden="true">
+        {holding > 0 ? (
+          <svg class="hold-ring" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" pathLength={1} style={{ strokeDashoffset: 1 - holding }} /></svg>
+        ) : null}
+        <i /><i /><i /><i />
+      </span>
       <span class="cmd-phase">{phase === 'Idle' ? 'Voice' : phase === 'Awaiting Confirmation' ? 'Confirm' : phase}</span>
       <div class="cmd-main">
       <p class="cmd-text">
         {listening ? (
           words.length ? words.map((word, index) => <span class="word" key={`${index}-${word}`} style={{ animationDelay: `${Math.min(index, 3) * 18}ms` }}>{word} </span>) : <span class="cmd-wait">Listening…</span>
         ) : (
-          <span key={command} class="cmd-line">{command || 'Wave, then speak.'}</span>
+          <span key={command} class="cmd-line">{command || 'Hover, then speak.'}</span>
         )}
       </p>
       {pinTo}

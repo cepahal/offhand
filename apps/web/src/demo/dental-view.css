@@ -497,3 +497,8 @@ td .allergy-chip { margin-left: 0; font-size: 14px; }
 .callout-lines path.hidden-pin { opacity: 0.8; stroke-width: 1.8; }
 .tooth-tag { z-index: 4; }
 .tooth-tag > span { box-shadow: 0 0 0 3px #0b0c0e; }
+
+/* Hover-to-speak: a ring fills around the orb while the hand is held still. */
+.cmd-orb { position: relative; }
+.hold-ring { position: absolute; inset: -4px; width: 48px; height: 48px; transform: rotate(-90deg); pointer-events: none; }
+.hold-ring circle { fill: none; stroke: var(--ok); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; transition: stroke-dashoffset 120ms linear; }

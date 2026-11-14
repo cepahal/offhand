@@ -15,6 +15,9 @@
  *   rhythm, when the hand leaves the sensor for a while, or when it holds still in view (a pause).
  * - Push/pull: whichever of the pair comes first decides. Pushes start with the hand far away,
  *   pulls start with it close, which is the order the sensor already reports them in.
+ * Voice: holding the hand still over the sensor for HOVER_TO_SPEAK_MS starts listening (or confirms
+ * a pending command). Wave is ignored: it fired too easily. The hand must move or leave before the
+ * next hold counts.
  * Pure and clock-injected (board milliseconds), so every rule is unit-tested.
  */
 import type { GestureName } from '@hoverscan/contracts';
@@ -46,8 +49,10 @@ export interface IntentConfig {
   holdTolerance: number;
   /** The same gesture again within this is the sensor reporting one pass twice. */
   duplicateMs: number;
-  /** Spin and wave: quiet window between accepted events. */
+  /** Spin: quiet window between accepted events. */
   otherDebounceMs: number;
+  /** Hold the hand still this long to speak / confirm. */
+  hoverToSpeakMs: number;
 }
 
 export const DEFAULT_INTENT: IntentConfig = {
@@ -60,7 +65,10 @@ export const DEFAULT_INTENT: IntentConfig = {
   holdTolerance: 0.08,
   duplicateMs: 160,
   otherDebounceMs: 280,
+  hoverToSpeakMs: 1500,
 };
+
+export const HOVER_TO_SPEAK_MS = DEFAULT_INTENT.hoverToSpeakMs;
 
 export type IntentDecision =
   | {
@@ -72,7 +80,10 @@ export type IntentDecision =
       reason: 'stroke' | 'repeat' | 'reversal' | 'other';
     }
   | { kind: 'return'; gesture: GestureName; of: GestureName }
-  | { kind: 'drop'; gesture: GestureName; reason: 'repeat-seq' | 'duplicate' | 'debounce' };
+  | { kind: 'drop'; gesture: GestureName; reason: 'repeat-seq' | 'duplicate' | 'debounce' | 'wave-off' };
+
+/** What a hover sample means for voice: still building a hold, or the hold just completed. */
+export type HoverDecision = { kind: 'holding'; progress: number } | { kind: 'speak' } | null;
 
 interface AxisRun {
   dir: 1 | -1 | null;
@@ -91,7 +102,7 @@ export class GestureIntent {
   private runs: Record<GestureAxis, AxisRun> = { yaw: freshRun(), pitch: freshRun(), zoom: freshRun() };
   private lastSeq = -1;
   private lastTime = -Infinity;
-  private lastOther: { g: GestureName; at: number } = { g: 'wave', at: -Infinity };
+  private lastOther: { g: GestureName; at: number } = { g: 'cw', at: -Infinity };
   private gaps: number[] = [];
   // Hover tracking since the last directional gesture.
   private lastHoverAt = -Infinity;
@@ -99,6 +110,8 @@ export class GestureIntent {
   private maxGap = 0;
   private maxStill = 0;
   private still: { x: number; y: number; since: number } | null = null;
+  /** Speak hold: anchor of the current hold and whether it already fired. */
+  private hold: { x: number; y: number; since: number; fired: boolean } | null = null;
 
   constructor(cfg: Partial<IntentConfig> = {}) {
     this.cfg = { ...DEFAULT_INTENT, ...cfg };
@@ -112,9 +125,10 @@ export class GestureIntent {
     return Math.min(this.cfg.maxWindowMs, Math.max(this.cfg.minWindowMs, median * this.cfg.rhythmFactor));
   }
 
-  hover(sample: { x: number; y: number; ms: number }): void {
+  hover(sample: { x: number; y: number; ms: number }): HoverDecision {
     const t = sample.ms;
     if (t < this.lastTime - 5000) this.reset();
+    const speak = this.trackHold(sample, t);
     const from = Math.max(this.lastHoverAt, this.refAt);
     if (Number.isFinite(from)) this.maxGap = Math.max(this.maxGap, t - from);
     const tol = this.cfg.holdTolerance;
@@ -125,6 +139,26 @@ export class GestureIntent {
     if (this.still.since >= this.refAt) this.maxStill = Math.max(this.maxStill, t - this.still.since);
     this.lastHoverAt = t;
     this.lastTime = Math.max(this.lastTime, t);
+    return speak;
+  }
+
+  /** Hand-still hold for voice. Resets when the hand moves, leaves, or a gesture is made. */
+  private trackHold(sample: { x: number; y: number }, t: number): HoverDecision {
+    const tol = this.cfg.holdTolerance;
+    const continuous = t - this.lastHoverAt <= 200;
+    const moved = !this.hold || !continuous || Math.abs(sample.x - this.hold.x) > tol || Math.abs(sample.y - this.hold.y) > tol;
+    if (moved) {
+      this.hold = { x: sample.x, y: sample.y, since: t, fired: false };
+      return null;
+    }
+    const h = this.hold!;
+    if (h.fired) return null;
+    const progress = (t - h.since) / this.cfg.hoverToSpeakMs;
+    if (progress >= 1) {
+      h.fired = true;
+      return { kind: 'speak' };
+    }
+    return progress > 0.15 ? { kind: 'holding', progress } : null;
   }
 
   gesture(hit: { g: GestureName; seq: number; ms: number }): IntentDecision {
@@ -134,6 +168,9 @@ export class GestureIntent {
     if (t < this.lastTime - 5000) this.reset(); // board rebooted, its clock restarted
     this.lastTime = Math.max(this.lastTime, t);
 
+    // Any gesture is movement: a speak hold in progress starts over.
+    this.hold = null;
+    if (hit.g === 'wave') return { kind: 'drop', gesture: hit.g, reason: 'wave-off' };
     const mapped = AXES[hit.g];
     if (!mapped) return this.other(hit.g, t);
 
@@ -182,6 +219,7 @@ export class GestureIntent {
     this.maxGap = 0;
     this.maxStill = 0;
     this.still = null;
+    this.hold = null;
   }
 
   private stroke(run: AxisRun, g: GestureName, sign: 1 | -1, t: number, reason: 'stroke' | 'repeat' | 'reversal'): IntentDecision {
@@ -194,8 +232,7 @@ export class GestureIntent {
   }
 
   private other(g: GestureName, t: number): IntentDecision {
-    const sameFamily = (g === 'wave') === (this.lastOther.g === 'wave');
-    if (sameFamily && t - this.lastOther.at < this.cfg.otherDebounceMs) return { kind: 'drop', gesture: g, reason: 'debounce' };
+    if (t - this.lastOther.at < this.cfg.otherDebounceMs) return { kind: 'drop', gesture: g, reason: 'debounce' };
     this.lastOther = { g, at: t };
     this.runs = { yaw: freshRun(), pitch: freshRun(), zoom: freshRun() };
     this.markEvent(t);

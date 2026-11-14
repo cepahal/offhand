@@ -3,7 +3,7 @@
  *
  * TODO(verify): firmware contractName() emits only up, down, left, right, forward,
  * backward, cw, ccw, and wave on {"t":"g"}. It does not emit "hold". A hold here is
- * a hand that stays within 0.06 (the mapper's hoverStillTolerance) for 1000 ms on
+ * a hand that stays within 0.08 (the mapper's hoverStillTolerance) for 1500 ms (hover to speak) on
  * {"t":"h"} samples, which the firmware sends only while hover output is enabled.
  * "Hand left" is the firmware comment "[HOVER] hand left view", not a gesture event.
  */
@@ -13,8 +13,8 @@ import { KNOWN_BRIDGES } from './link.js';
 
 export const RECORD_TARGET = 5;
 export const DETECT_PAUSE_MS = 1500;
-export const HOLD_STILL_MS = 1000;
-export const HOLD_TOLERANCE = 0.06;
+export const HOLD_STILL_MS = 1500;
+export const HOLD_TOLERANCE = 0.08;
 export const HAND_GONE_MS = 400;
 
 export const GESTURE_ORDER = ['left', 'right', 'up', 'down', 'forward', 'backward', 'cw', 'ccw', 'wave', 'hold'] as const;

@@ -1,5 +1,5 @@
 /**
- * Hack listens through the existing open microphone after a wave.
+ * Hack listens through the existing open microphone after a 1.5 s hover over the gesture board.
  * `heard` carries the words recognised so far, interim results included, so the command bar can
  * show them as they are spoken. Only the finished phrase is interpreted.
  */
@@ -49,7 +49,7 @@ export function useHackAssistant(handlers: HackHandlers): {
   dismissPatient: () => void;
 } {
   const [phase, setPhase] = useState<HackPhase>('Idle');
-  const [command, setCommand] = useState('Wave, then speak.');
+  const [command, setCommand] = useState('Hover, then speak.');
   const [heard, setHeard] = useState('');
   const [activity, setActivity] = useState('Idle');
   const [log, setLog] = useState<string[]>([]);
@@ -73,7 +73,7 @@ export function useHackAssistant(handlers: HackHandlers): {
     window.setTimeout(() => {
       setPhase('Idle');
       setActivity('Idle');
-      setCommand('Wave, then speak.');
+      setCommand('Hover, then speak.');
     }, 1600);
   }
 
@@ -167,12 +167,12 @@ export function useHackAssistant(handlers: HackHandlers): {
           window.setTimeout(() => {
             setPhase('Idle');
             setActivity('Idle');
-            setCommand('Wave, then speak.');
+            setCommand('Hover, then speak.');
           }, 1600);
         } else {
           setPhase('Idle');
           setActivity('Failed');
-          setCommand('Wave, then speak.');
+          setCommand('Hover, then speak.');
         }
       })
       .catch(() => {
@@ -181,7 +181,7 @@ export function useHackAssistant(handlers: HackHandlers): {
         record(`${role === 'hospital' ? 'Hospital' : 'Patient'} message failed: Photon listener is not connected`);
         setPhase('Idle');
         setActivity('Failed');
-        setCommand('Wave, then speak.');
+        setCommand('Hover, then speak.');
       })
       .finally(() => {
         sending.current = false;
@@ -195,14 +195,14 @@ export function useHackAssistant(handlers: HackHandlers): {
       setPending(null);
       setPhase('Idle');
       setActivity(next.question);
-      setCommand('Wave, then speak.');
+      setCommand('Hover, then speak.');
       return;
     }
     if (needsConfirm(next)) {
       setPending({ command: next, label });
       setPhase('Awaiting Confirmation');
-      setActivity('Wave to confirm');
-      setCommand(`${label}. Wave to confirm.`);
+      setActivity('Hover to confirm');
+      setCommand(`${label}. Hover to confirm.`);
       return;
     }
     setPending(null);
@@ -289,7 +289,7 @@ export function useHackAssistant(handlers: HackHandlers): {
         stopMic();
         setPhase('Idle');
         setActivity(message);
-        setCommand('Wave, then speak.');
+        setCommand('Hover, then speak.');
       },
     });
   }

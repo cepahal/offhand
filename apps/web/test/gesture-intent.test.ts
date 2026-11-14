@@ -74,10 +74,42 @@ describe('gesture intent: repeated strokes and their returns', () => {
     expect(acted(ds)).toEqual(['up', 'left', 'down']);
   });
 
-  it('keeps spin and wave on their own short debounce and maps wave to wake', () => {
+  it('ignores wave and keeps spin on a short debounce', () => {
     const ds = feed(new GestureIntent(), [[0, 'wave'], [100, 'wave'], [500, 'cw'], [600, 'cw'], [1000, 'ccw']]);
-    expect(ds.map((d) => d.kind)).toEqual(['act', 'drop', 'act', 'drop', 'act']);
-    expect(ds[0]).toMatchObject({ action: { type: 'wake' } });
+    expect(ds.map((d) => d.kind)).toEqual(['drop', 'drop', 'act', 'drop', 'act']);
+    expect(ds[0]).toMatchObject({ reason: 'wave-off' });
+  });
+
+  it('speaks after the hand is held still for 1.5 s, once per hold', () => {
+    const intent = new GestureIntent();
+    const out: string[] = [];
+    for (let ms = 0; ms <= 2500; ms += 50) {
+      const d = intent.hover({ x: 0.5 + (ms % 100 ? 0.01 : 0), y: 0.5, ms });
+      if (d) out.push(d.kind);
+    }
+    expect(out.filter((k) => k === 'speak')).toHaveLength(1);
+    expect(out.indexOf('speak')).toBeGreaterThan(out.indexOf('holding'));
+    // first speak lands at 1.5 s
+    const again = new GestureIntent();
+    let at = -1;
+    for (let ms = 0; ms <= 2000 && at < 0; ms += 50) if (again.hover({ x: 0.5, y: 0.5, ms })?.kind === 'speak') at = ms;
+    expect(at).toBe(1500);
+  });
+
+  it('restarts the hold when the hand moves, leaves, or makes a gesture', () => {
+    const intent = new GestureIntent();
+    const hold = (from: number, to: number, x = 0.5) => {
+      let spoke = false;
+      for (let ms = from; ms <= to; ms += 50) if (intent.hover({ x, y: 0.5, ms })?.kind === 'speak') spoke = true;
+      return spoke;
+    };
+    expect(hold(0, 1200)).toBe(false);
+    expect(hold(1250, 2000, 0.8)).toBe(false); // moved: timer restarts at 1250
+    expect(hold(2050, 2800, 0.8)).toBe(true);
+    expect(hold(3500, 4400)).toBe(false); // hand left and came back: new hold
+    intent.gesture({ g: 'left', seq: 9001, ms: 4450 });
+    expect(hold(4500, 5900)).toBe(false); // a gesture resets the hold
+    expect(hold(5950, 6000)).toBe(true);
   });
 
   it('recovers when the board reboots and its clock restarts', () => {

@@ -14,19 +14,12 @@ export interface MapperConfig {
   pitchStepDeg: number;
   /** forward = zoom by this factor, backward = 1/factor. */
   zoomFactor: number;
-  /** Hand must stay still this long before scrub mode starts. */
+  /** Hand held still over the board this long = speak (toggle listening / confirm). */
   hoverHoldMs: number;
   /** Max movement (normalised units, per axis) that still counts as "still". */
   hoverStillTolerance: number;
   /** No hover sample for this long = hand pulled away. */
   hoverLostMs: number;
-  /** Which hover axis drives the scrub value. */
-  scrubAxis: 'x' | 'y' | 'z';
-  scrubInvert: boolean;
-  /** Minimum change before a new scrub command is sent. */
-  scrubDeadband: number;
-  /** Minimum time between scrub commands (caps the rate at ~20 Hz). */
-  scrubMinIntervalMs: number;
 }
 
 export const DEFAULT_MAPPER_CONFIG: MapperConfig = {
@@ -34,20 +27,16 @@ export const DEFAULT_MAPPER_CONFIG: MapperConfig = {
   yawStepDeg: 10,
   pitchStepDeg: 8,
   zoomFactor: 1.08,
-  hoverHoldMs: 1000,
-  hoverStillTolerance: 0.06,
+  hoverHoldMs: 1500,
+  hoverStillTolerance: 0.08,
   hoverLostMs: 400,
-  scrubAxis: 'y',
-  scrubInvert: false,
-  scrubDeadband: 0.01,
-  scrubMinIntervalMs: 50,
 };
 
 /**
- * Default gesture map (00-plan): left/right yaw -/+30 deg, up/down pitch +/-20 deg,
- * forward/backward zoom in/out, cw/ccw peel out/in, wave toggles push-to-talk.
+ * Gesture map: left/right yaw, up/down pitch, forward/backward zoom in/out, cw/ccw peel out/in.
+ * Wave maps to nothing: it fired too easily. Voice is a 1.5 s hover (see GestureMapper.onHover).
  */
-export function gestureToBody(g: GestureName, cfg: MapperConfig, listening: boolean): ViewerCommandBody {
+export function gestureToBody(g: GestureName, cfg: MapperConfig): ViewerCommandBody | null {
   switch (g) {
     case 'left':
       return { type: 'rotate', yawDeg: -cfg.yawStepDeg };
@@ -66,32 +55,32 @@ export function gestureToBody(g: GestureName, cfg: MapperConfig, listening: bool
     case 'ccw':
       return { type: 'peel', dir: 'in' };
     case 'wave':
-      return { type: 'listen', on: !listening };
+      return null;
   }
 }
 
 interface HoverSample {
   x: number;
   y: number;
-  z: number;
 }
 
 /**
  * Turns raw board events into ViewerCommands. Pure and clock-injected so it is unit-testable:
  * call handle() for every event and tick() periodically (e.g. every 50 ms).
+ *
+ * Holding the hand still over the board for hoverHoldMs toggles listening ({type:'listen'}), once
+ * per hold: the hand must move or leave before another hold counts. A gesture restarts the hold.
  */
 export class GestureMapper {
   readonly cfg: MapperConfig;
-  private mode: 'orbit' | 'scrub' = 'orbit';
   private listening = false;
   private lastAcceptedAt = -Infinity;
   private lastGesture: GestureName | null = null;
   private lastDirectionalAt = -Infinity;
   private anchor: HoverSample | null = null;
   private anchorAt = 0;
+  private fired = false;
   private lastHoverAt = -Infinity;
-  private lastScrub = -1;
-  private lastScrubAt = -Infinity;
 
   constructor(
     private readonly source: CommandSource = 'gesture',
@@ -100,27 +89,29 @@ export class GestureMapper {
     this.cfg = { ...DEFAULT_MAPPER_CONFIG, ...cfg };
   }
 
-  get currentMode(): 'orbit' | 'scrub' {
-    return this.mode;
+  get isListening(): boolean {
+    return this.listening;
   }
 
   handle(ev: GestureEvent, now: number): ViewerCommand[] {
     if (ev.t === 'g') return this.onGesture(ev.g, now);
-    if (ev.t === 'h') return this.onHover({ x: ev.x, y: ev.y, z: ev.z }, now);
+    if (ev.t === 'h') return this.onHover({ x: ev.x, y: ev.y }, now);
     return [];
   }
 
   tick(now: number): ViewerCommand[] {
-    const gone = now - this.lastHoverAt > this.cfg.hoverLostMs;
-    if (!gone) return [];
-    this.anchor = null;
-    if (this.mode === 'scrub') return [this.setMode('orbit', now)];
+    if (now - this.lastHoverAt > this.cfg.hoverLostMs) {
+      this.anchor = null;
+      this.fired = false;
+    }
     return [];
   }
 
   private onGesture(g: GestureName, now: number): ViewerCommand[] {
-    // In scrub mode the hand is moving up/down on purpose; only wave gets through.
-    if (this.mode === 'scrub' && g !== 'wave') return [];
+    this.anchor = null; // a gesture is movement, not a hold
+    this.fired = false;
+    const body = gestureToBody(g, this.cfg);
+    if (!body) return [];
     // PAJ reports the hand's return-to-center as the opposite gesture. Suppress
     // that rebound briefly, while still allowing deliberate repetitions.
     const opposite: Partial<Record<GestureName, GestureName>> = {
@@ -132,44 +123,23 @@ export class GestureMapper {
     this.lastAcceptedAt = now;
     this.lastGesture = g;
     this.lastDirectionalAt = now;
-    this.anchor = null; // a swipe is not a hold
-    const body = gestureToBody(g, this.cfg, this.listening);
-    if (body.type === 'listen') this.listening = body.on;
     return [makeCommand(body, this.source, now)];
   }
 
   private onHover(s: HoverSample, now: number): ViewerCommand[] {
+    const lost = now - this.lastHoverAt > this.cfg.hoverLostMs;
     this.lastHoverAt = now;
-    if (this.mode === 'scrub') return this.maybeScrub(s, now);
-
     const tol = this.cfg.hoverStillTolerance;
-    const moved =
-      !this.anchor || Math.abs(s.x - this.anchor.x) > tol || Math.abs(s.y - this.anchor.y) > tol;
+    const moved = lost || !this.anchor || Math.abs(s.x - this.anchor.x) > tol || Math.abs(s.y - this.anchor.y) > tol;
     if (moved) {
       this.anchor = s;
       this.anchorAt = now;
+      this.fired = false;
       return [];
     }
-    if (now - this.anchorAt < this.cfg.hoverHoldMs) return [];
-    // Held still long enough -> scrub mode.
-    this.lastScrub = -1;
-    this.lastScrubAt = -Infinity;
-    return [this.setMode('scrub', now), ...this.maybeScrub(s, now)];
-  }
-
-  private maybeScrub(s: HoverSample, now: number): ViewerCommand[] {
-    let v = s[this.cfg.scrubAxis];
-    if (this.cfg.scrubInvert) v = 1 - v;
-    v = Math.min(1, Math.max(0, v));
-    if (Math.abs(v - this.lastScrub) < this.cfg.scrubDeadband) return [];
-    if (now - this.lastScrubAt < this.cfg.scrubMinIntervalMs) return [];
-    this.lastScrub = v;
-    this.lastScrubAt = now;
-    return [makeCommand({ type: 'scrub', value: Math.round(v * 1000) / 1000 }, this.source, now)];
-  }
-
-  private setMode(mode: 'orbit' | 'scrub', now: number): ViewerCommand {
-    this.mode = mode;
-    return makeCommand({ type: 'mode', mode }, this.source, now);
+    if (this.fired || now - this.anchorAt < this.cfg.hoverHoldMs) return [];
+    this.fired = true;
+    this.listening = !this.listening;
+    return [makeCommand({ type: 'listen', on: this.listening }, this.source, now)];
   }
 }
