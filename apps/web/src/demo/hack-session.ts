@@ -17,6 +17,12 @@ interface HackHandlers {
   viewScans: () => void;
   addNote: (text: string) => void;
   applyPrescription: (medication: string) => Promise<void>;
+  openBite: () => void;
+  simulateBite: (tooth: string) => { ok: true } | { ok: false; question: string };
+  showBone: () => void;
+  showAnalysis: () => void;
+  showAdjustments: () => void;
+  replayBite: () => void;
 }
 
 const SILENCE_MS = 2000;
@@ -36,6 +42,7 @@ export function useHackAssistant(handlers: HackHandlers): {
   patientMessage: string;
   pending: HackPending | null;
   arm: () => void;
+  note: (text: string) => void;
   dismissPatient: () => void;
 } {
   const [phase, setPhase] = useState<HackPhase>('Idle');
@@ -87,6 +94,43 @@ export function useHackAssistant(handlers: HackHandlers): {
     }
     if (action.command === 'change_prescription') {
       void handlersRef.current.applyPrescription(action.medication).then(() => finish(next.label));
+      return;
+    }
+    if (action.command === 'open_bite') {
+      handlersRef.current.openBite();
+      finish(next.label);
+      return;
+    }
+    if (action.command === 'simulate_bite') {
+      const result = handlersRef.current.simulateBite(action.tooth);
+      if (!result.ok) {
+        record(result.question);
+        setPhase('Idle');
+        setActivity(result.question);
+        setCommand(result.question);
+        return;
+      }
+      finish(next.label);
+      return;
+    }
+    if (action.command === 'show_bone') {
+      handlersRef.current.showBone();
+      finish(next.label);
+      return;
+    }
+    if (action.command === 'show_analysis') {
+      handlersRef.current.showAnalysis();
+      finish(next.label);
+      return;
+    }
+    if (action.command === 'show_adjustments') {
+      handlersRef.current.showAdjustments();
+      finish(next.label);
+      return;
+    }
+    if (action.command === 'replay_bite') {
+      handlersRef.current.replayBite();
+      finish(next.label);
       return;
     }
     const role = action.command === 'message_hospital' ? 'hospital' : 'patient';
@@ -200,8 +244,10 @@ export function useHackAssistant(handlers: HackHandlers): {
         .then((raw: unknown) => {
           setPhase('Preparing');
           setActivity('Preparing');
+          const local = interpretCommand(heard);
           const fromModel = raw ? commandFromModel(raw) : null;
-          stage(fromModel && fromModel.command !== 'ask' ? fromModel : interpretCommand(heard));
+          const bite = ['open_bite', 'simulate_bite', 'show_bone', 'show_analysis', 'show_adjustments', 'replay_bite'].includes(local.command);
+          stage(bite ? local : fromModel && fromModel.command !== 'ask' ? fromModel : local);
         })
         .catch(() => {
           setPhase('Preparing');
@@ -252,6 +298,10 @@ export function useHackAssistant(handlers: HackHandlers): {
     patientMessage,
     pending,
     arm,
+    note(text: string) {
+      record(text);
+      setActivity(text);
+    },
     dismissPatient() {
       setPatientMessage('');
     },

@@ -14,6 +14,13 @@ describe('Hack commands', () => {
       command: 'message_hospital',
     });
     expect(interpretCommand("view patient's dental scans").command).toBe('view_scans');
+    expect(interpretCommand('Hack, open bite simulation.').command).toBe('open_bite');
+    expect(interpretCommand('Hack, simulate bite force on tooth 19.')).toMatchObject({ command: 'simulate_bite', tooth: '19' });
+    expect(interpretCommand('Hack, check for bone overload.').command).toBe('show_bone');
+    expect(interpretCommand('Hack, show biomechanical analysis.').command).toBe('show_analysis');
+    expect(interpretCommand('Hack, show suggested adjustments.').command).toBe('show_adjustments');
+    expect(interpretCommand('Hack, replay the simulation.').command).toBe('replay_bite');
+    expect(interpretCommand('Hack, simulate bite force.').command).toBe('ask');
   });
 
   it('keeps a long note intact and only falls back to the first 20 words', () => {

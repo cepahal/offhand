@@ -7,17 +7,20 @@ import { createGestureGate } from './dental-gestures.js';
 import { addCaseNote, annotate, emptyNoteBook, notesFor, setAnnotationSink, type CaseNote, type NoteBook } from './annotations.js';
 import { DENTAL_TRAININGS } from './dental-anatomy.js';
 import { DentalStage, type StageControl } from './DentalStage.js';
+import { resolveTooth } from './bite-analysis.js';
+import { BiteSimulation } from './BiteSimulation.js';
 import { useHackAssistant } from './hack-session.js';
 import { PatientDatabase } from './PatientDatabase.js';
 import { openPatientWindow, updatePrescription } from './patient-record.js';
 
-type Page = 'view' | 'dashboard' | 'reports' | 'settings';
+type Page = 'view' | 'bite' | 'dashboard' | 'reports' | 'settings';
 
 const DEFAULT_CLINIC = { doctor: 'OYO Clinician', hospital: 'Princeton Medical Center', patientName: 'Alex Johnson', patientId: 'AJ-34' };
 
 export function DentalView() {
   const [page, setPage] = useState<Page>('view');
   const [clinic, setClinic] = useState(DEFAULT_CLINIC);
+  const [biteRequest, setBiteRequest] = useState<{ scenarioId: string | null; focus: 'bone' | 'analysis' | 'adjustments' | null; replay: number }>({ scenarioId: null, focus: null, replay: 0 });
   const [training, setTraining] = useState(0);
   const [notes, setNotes] = useState<NoteBook>(emptyNoteBook);
   const viewer = useRef<StageControl | null>(null);
@@ -74,6 +77,30 @@ export function DentalView() {
     applyPrescription: async (medication) => {
       await updatePrescription(medication, true);
     },
+    openBite: () => setPage('bite'),
+    simulateBite: (tooth) => {
+      const found = resolveTooth(tooth);
+      if (!found.ok) return found;
+      setPage('bite');
+      setBiteRequest((current) => ({ scenarioId: found.scenario.id, focus: 'analysis', replay: current.replay + 1 }));
+      return { ok: true };
+    },
+    showBone: () => {
+      setPage('bite');
+      setBiteRequest((current) => ({ ...current, focus: 'bone' }));
+    },
+    showAnalysis: () => {
+      setPage('bite');
+      setBiteRequest((current) => ({ ...current, focus: 'analysis' }));
+    },
+    showAdjustments: () => {
+      setPage('bite');
+      setBiteRequest((current) => ({ ...current, focus: 'adjustments' }));
+    },
+    replayBite: () => {
+      setPage('bite');
+      setBiteRequest((current) => ({ ...current, replay: current.replay + 1 }));
+    },
   });
   armRef.current = hack.arm;
   return (
@@ -99,6 +126,7 @@ export function DentalView() {
       <div class="dv-body">
         <nav class="dv-nav">
           <button class={page === 'view' ? 'on' : ''} type="button" onClick={() => setPage('view')}><Tooth />Neuroview</button>
+          <button class={page === 'bite' ? 'on' : ''} type="button" onClick={() => setPage('bite')}><Tooth />Bite Simulation</button>
           <button class={page === 'dashboard' ? 'on' : ''} type="button" onClick={() => setPage('dashboard')}><Grid />Dashboard</button>
           <button class={page === 'reports' ? 'on' : ''} type="button" onClick={() => setPage('reports')}><Doc />Reports</button>
           <button class={page === 'settings' ? 'on' : ''} type="button" onClick={() => setPage('settings')}><Gear />Settings</button>
@@ -109,6 +137,8 @@ export function DentalView() {
         </nav>
         {page === 'view' ? (
           <NeuroStage training={training} setTraining={setTraining} viewer={viewer} notes={notesFor(notes, active.n)} command={hack.command} gestureLabel={gestureLabel} awaiting={hack.pending !== null} />
+        ) : page === 'bite' ? (
+          <BiteSimulation trainingTitle={active.title} patientName="Alex Johnson" request={biteRequest} onNote={hack.note} />
         ) : (
           <DummyPage page={page} clinic={clinic} />
         )}
@@ -234,7 +264,7 @@ function NeuroStage({
   );
 }
 
-function DummyPage({ page, clinic }: { page: Exclude<Page, 'view'>; clinic: typeof DEFAULT_CLINIC }) {
+function DummyPage({ page, clinic }: { page: Exclude<Page, 'view' | 'bite'>; clinic: typeof DEFAULT_CLINIC }) {
   const [sound, setSound] = useState(true);
   const [hints, setHints] = useState(true);
   if (page === 'dashboard') {

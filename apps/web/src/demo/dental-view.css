@@ -199,6 +199,37 @@ html, body, #root { height: 100%; margin: 0; background: #0b0d12; }
 .dv-page h1 { margin: 4px 0 0; font-size: 22px; }
 .dv-page .lead { margin: 0; color: #9aa3b2; }
 .dv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dv-bite-flag { margin: 0; color: #f5d33b; font-weight: 700; }
+.dv-bite-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.dv .dv-bite-pick button { height: 30px; padding: 0 10px; border-radius: 8px; background: #171b26; border: 1px solid #2a3142; color: #d5dbe6; }
+.dv .dv-bite-pick button.on { background: #6d4dff; border-color: #6d4dff; color: #fff; }
+.dv-bite-rows { display: grid; gap: 8px; margin: 10px 0 0; }
+.dv-bite-rows div { display: grid; grid-template-columns: 180px 1fr; gap: 8px; }
+.dv-bite-rows dt { color: #9aa3b2; }
+.dv-bite-rows dd { margin: 0; }
+.dv-bite-pressure { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.dv-bite-pressure li { display: flex; justify-content: space-between; gap: 12px; }
+.dv .dv-bite-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dv .dv-bite-controls button, .dv .dv-bite-controls select { height: 30px; padding: 0 10px; border-radius: 8px; background: #171b26; border: 1px solid #2a3142; color: #d5dbe6; }
+.dv .dv-bite-controls label { display: flex; align-items: center; gap: 8px; color: #9aa3b2; }
+.dv-bite-visual { position: relative; min-height: 460px; border-radius: 12px; background: #0c0e13; border: 1px solid #2a3142; overflow: hidden; }
+.dv-bite-stage { width: 100%; height: 460px; }
+.dv-bite-stage canvas { display: block; width: 100%; height: 100%; }
+.dv-bite-legend { position: absolute; left: 12px; bottom: 12px; display: grid; gap: 4px; padding: 10px 12px; border-radius: 10px; background: rgba(12, 14, 19, 0.88); font-size: 12px; }
+.dv-bite-legend span { display: flex; align-items: center; gap: 6px; }
+.dv-bite-legend i { width: 10px; height: 10px; border-radius: 50%; }
+.dv-bone-arch { position: relative; height: 120px; margin: 12px 0; }
+.dv-bone-arch .shell { position: absolute; left: 18%; right: 18%; top: 18px; height: 78px; border: 3px solid; border-radius: 60px 60px 24px 24px; }
+.dv-bone-arch .core { position: absolute; left: 32%; right: 32%; top: 40px; height: 36px; border-radius: 18px; opacity: 0.85; }
+.dv-bone-arch .ligament { position: absolute; left: 46%; top: 48px; width: 18px; height: 28px; border-radius: 6px; }
+.dv-bone-arch .joint { position: absolute; top: 8px; width: 16px; height: 16px; border-radius: 50%; }
+.dv-bone-arch .joint.left { left: 16%; }
+.dv-bone-arch .joint.right { right: 16%; }
+.dv-factors { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.dv-factors li { display: grid; grid-template-columns: 1.4fr 0.8fr 0.8fr 90px 1.2fr; gap: 8px; align-items: center; font-size: 13px; }
+.dv-factors i { display: block; height: 6px; border-radius: 99px; background: #2a3142; }
+.dv-factors i em { display: block; height: 100%; border-radius: 99px; }
+.dv-findings { margin: 8px 0 12px; padding-left: 18px; }
 .dv-page .dv-setting { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .dv-setting button { height: 28px; padding: 0 10px; border-radius: 999px; background: #242a38; }
 .dv-menu {

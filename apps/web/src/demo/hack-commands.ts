@@ -9,6 +9,12 @@ export type HackCommand =
   | { command: 'message_patient'; text: string }
   | { command: 'message_hospital'; text: string }
   | { command: 'view_scans' }
+  | { command: 'open_bite' }
+  | { command: 'simulate_bite'; tooth: string }
+  | { command: 'show_bone' }
+  | { command: 'show_analysis' }
+  | { command: 'show_adjustments' }
+  | { command: 'replay_bite' }
   | { command: 'ask'; question: string };
 
 export type HackPhase = 'Idle' | 'Listening' | 'Understanding' | 'Preparing' | 'Awaiting Confirmation' | 'Executing' | 'Completed';
@@ -47,8 +53,18 @@ function noteText(text: string): string {
 
 export function commandFromText(input: string): HackCommand {
   const text = clean(input);
-  const lower = text.toLowerCase();
+  const lower = text.toLowerCase().replace(/^hack[\s,.:;-]*/i, '');
   if (!text) return ask(ASK);
+  if (/open bite simulation\b|\bopen the bite\b/.test(lower)) return { command: 'open_bite' };
+  if (/\breplay\b/.test(lower) && /simulation/.test(lower)) return { command: 'replay_bite' };
+  if (/bone overload/.test(lower)) return { command: 'show_bone' };
+  if (/suggested adjustments/.test(lower)) return { command: 'show_adjustments' };
+  if (/biomechanical analysis/.test(lower)) return { command: 'show_analysis' };
+  if (/simulate bite|bite force/.test(lower)) {
+    const tooth = /tooth\s*(?:fdi|universal)?\s*(\d{1,2})/i.exec(lower)?.[1];
+    if (!tooth) return ask('Which tooth should I simulate? Use an FDI or Universal number from the ten scenarios.');
+    return { command: 'simulate_bite', tooth };
+  }
   if (/(change|set|update).*(prescription|medication)/.test(lower)) {
     const named = medication(text);
     if (isAmbiguousMedication(named)) return ask(WHICH_MEDICATION);
@@ -105,6 +121,12 @@ export function commandFromModel(raw: unknown): HackCommand {
   if (action === 'add_note' && note) return { command: 'add_note', text: note };
   if ((action === 'message_patient' || action === 'send_instructions') && note) return { command: 'message_patient', text: note };
   if (action === 'message_hospital' && note) return { command: 'message_hospital', text: note };
+  if (action === 'open_bite') return { command: 'open_bite' };
+  if (action === 'simulate_bite' && (value || note)) return { command: 'simulate_bite', tooth: value || note };
+  if (action === 'show_bone') return { command: 'show_bone' };
+  if (action === 'show_analysis') return { command: 'show_analysis' };
+  if (action === 'show_adjustments') return { command: 'show_adjustments' };
+  if (action === 'replay_bite') return { command: 'replay_bite' };
   if (action === 'ask' && question) return ask(question);
   if (content) return interpretCommand(content);
   return ask(ASK);
@@ -124,6 +146,18 @@ export function commandLine(command: HackCommand): string {
       return 'Message to the hospital';
     case 'view_scans':
       return "View the patient's dental scans";
+    case 'open_bite':
+      return 'Open bite simulation';
+    case 'simulate_bite':
+      return `Simulate bite force on tooth ${command.tooth}`;
+    case 'show_bone':
+      return 'Check for bone overload';
+    case 'show_analysis':
+      return 'Show biomechanical analysis';
+    case 'show_adjustments':
+      return 'Show suggested adjustments';
+    case 'replay_bite':
+      return 'Replay the simulation';
     case 'ask':
       return command.question;
   }
