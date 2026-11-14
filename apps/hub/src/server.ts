@@ -38,6 +38,27 @@ app.get('/api/health', async () => ({
   modules: Object.fromEntries(modules.map((m) => [m.name, m.health()])),
 }));
 
+// ---- voice transcription (OpenAI Whisper). The key stays on the hub. -----------------------
+app.post<{ Body: { audioBase64?: string } }>('/api/voice/transcribe', async (req, reply) => {
+  const key = process.env.OPENAI_API_KEY;
+  const audio = req.body?.audioBase64;
+  if (!key) return reply.code(503).send({ error: 'not_configured' });
+  if (!audio || audio.length < 32) return reply.code(400).send({ error: 'missing audio' });
+  const bytes = Buffer.from(audio, 'base64');
+  const form = new FormData();
+  form.append('file', new Blob([bytes], { type: 'audio/wav' }), 'speech.wav');
+  form.append('model', 'whisper-1');
+  form.append('response_format', 'json');
+  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${key}` },
+    body: form,
+  });
+  if (!response.ok) return reply.code(502).send({ error: 'transcription_failed' });
+  const body = (await response.json()) as { text?: unknown };
+  return { text: typeof body.text === 'string' ? body.text.trim() : '' };
+});
+
 // ---- voice action (OpenAI function call; the browser validates the shape again) ------------
 app.post<{ Body: { transcript?: string; patients?: { name: string; mrn: string }[] } }>('/api/voice/action', async (req) => {
   const transcript = req.body?.transcript?.trim() ?? '';
@@ -50,7 +71,7 @@ app.post<{ Body: { transcript?: string; patients?: { name: string; mrn: string }
     body: JSON.stringify({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: `Patients: ${people.map((p) => `${p.name} MRN ${p.mrn}`).join('; ')}. Use the scanner_action tool. Dental commands: show_patient, change_prescription (value is the medication), add_note (text), message_patient (text), message_hospital (text), view_scans. If the medication or the command is unclear, action ask. Do not invent an action outside the enum.` },
+        { role: 'system', content: `Patients: ${people.map((p) => `${p.name} MRN ${p.mrn}`).join('; ')}. Use the scanner_action tool. Dental commands: show_patient, change_prescription (value is the medication), add_note (text), message_patient (text), message_hospital (text), view_scans, open_bite. If the medication or the command is unclear, action ask. Do not invent an action outside the enum.` },
         { role: 'user', content: transcript },
       ],
       tools: [
@@ -61,7 +82,7 @@ app.post<{ Body: { transcript?: string; patients?: { name: string; mrn: string }
             parameters: {
               type: 'object',
               properties: {
-                action: { enum: ['change_medication', 'view_history', 'view_mri', 'add_note', 'send_instructions', 'show_patient', 'change_prescription', 'message_patient', 'message_hospital', 'view_scans', 'ask'] },
+                action: { enum: ['change_medication', 'view_history', 'view_mri', 'add_note', 'send_instructions', 'show_patient', 'change_prescription', 'message_patient', 'message_hospital', 'view_scans', 'open_bite', 'ask'] },
                 patient: { type: 'string' },
                 value: { type: 'string' },
                 text: { type: 'string' },

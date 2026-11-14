@@ -148,7 +148,97 @@ export function beginHold(handlers: { onInterim: (text: string) => void; onText:
 export function beginOpenMic(handlers: { onInterim: (text: string) => void; onText: (text: string) => void; onError: (message: string) => void }): HoldSession {
   const url = whisperUrl();
   if (url) return beginWhisperLoop(url, handlers);
-  return beginContinuousSpeech(handlers);
+  return beginSpeechOrHub(handlers);
+}
+
+/** Chrome speech first. If it never returns words, record and send the wav to the hub. */
+function beginSpeechOrHub(handlers: { onInterim: (text: string) => void; onText: (text: string) => void; onError: (message: string) => void }): HoldSession {
+  let heard = false;
+  let switched = false;
+  let hub: HoldSession | null = null;
+  let speech: HoldSession | null = null;
+  const switchToHub = () => {
+    if (switched || heard) return;
+    switched = true;
+    speech?.stop();
+    hub = beginHubWhisper(handlers);
+  };
+  speech = beginContinuousSpeech({
+    onInterim(text) {
+      heard = true;
+      handlers.onInterim(text);
+    },
+    onText(text) {
+      heard = true;
+      handlers.onText(text);
+    },
+    onError(message) {
+      if (/network|service-not-allowed/i.test(message)) {
+        switchToHub();
+        return;
+      }
+      handlers.onError(message);
+    },
+  });
+  const timer = window.setTimeout(switchToHub, 2500);
+  return {
+    stop() {
+      window.clearTimeout(timer);
+      speech?.stop();
+      hub?.stop();
+    },
+  };
+}
+
+function beginHubWhisper(handlers: { onInterim: (text: string) => void; onText: (text: string) => void; onError: (message: string) => void }): HoldSession {
+  let stopped = false;
+  let stopRecord: (() => void) | null = null;
+  const cycle = () => {
+    if (stopped) return;
+    handlers.onInterim('Listening.');
+    const timer = setTimeout(() => stopRecord?.(), 4500);
+    void recordWav((stop) => {
+      stopRecord = () => {
+        clearTimeout(timer);
+        stop();
+      };
+    })
+      .then(async (wav) => {
+        if (stopped || wav.size <= 44) {
+          if (!stopped) cycle();
+          return;
+        }
+        const text = await transcribeOnHub(wav);
+        if (text.trim()) handlers.onText(text.trim());
+        if (!stopped) cycle();
+      })
+      .catch((err: Error) => {
+        if (!stopped) handlers.onError(err.message);
+      });
+  };
+  cycle();
+  return {
+    stop() {
+      stopped = true;
+      stopRecord?.();
+    },
+  };
+}
+
+async function transcribeOnHub(wav: Blob): Promise<string> {
+  const bytes = new Uint8Array(await wav.arrayBuffer());
+  let binary = '';
+  const step = 0x8000;
+  for (let index = 0; index < bytes.length; index += step) binary += String.fromCharCode(...bytes.subarray(index, index + step));
+  const response = await fetch('/api/voice/transcribe', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ audioBase64: btoa(binary) }),
+  });
+  if (response.status === 503) throw new Error('Voice transcription is not configured on the hub.');
+  if (!response.ok) throw new Error('Voice transcription failed.');
+  const body = (await response.json()) as { text?: unknown };
+  return typeof body.text === 'string' ? body.text : '';
 }
 
 function beginWebSpeech(handlers: { onInterim: (text: string) => void; onText: (text: string) => void; onError: (message: string) => void }): HoldSession {

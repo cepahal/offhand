@@ -47,6 +47,29 @@ export function toothForce(fdi: string): number {
   return ARCH_FORCE.find((item) => item.fdi === opposingFdi(fdi))?.percent ?? 0;
 }
 
+export type ReportFocus = '36' | '48';
+
+/** Tooth 36 keeps the arch table. Tooth 48 takes that peak share, and tooth 36 keeps the small wisdom-tooth share. */
+export function caseForce(fdi: string, focus: ReportFocus = '36'): number {
+  if (focus === '48') {
+    if (fdi === '48' || fdi === '18') return toothForce('36');
+    if (fdi === '36' || fdi === '26') return toothForce('48');
+  }
+  return toothForce(fdi);
+}
+
+export function caseBalance(focus: ReportFocus = '36'): { left: number; right: number } {
+  if (focus === '36') return sideBalance();
+  let left = 0;
+  let right = 0;
+  for (const tooth of ARCH_FORCE) {
+    const percent = caseForce(tooth.fdi, focus);
+    if (tooth.fdi.startsWith('3')) left += percent;
+    else right += percent;
+  }
+  return { left: Math.round(left * 10) / 10, right: Math.round(right * 10) / 10 };
+}
+
 export const UPPER_ORDER = ['18', '17', '16', '15', '14', '13', '12', '11', '21', '22', '23', '24', '25', '26', '27', '28'] as const;
 export const LOWER_ORDER = ['48', '47', '46', '45', '44', '43', '42', '41', '31', '32', '33', '34', '35', '36', '37', '38'] as const;
 
@@ -188,6 +211,52 @@ export const DEMO_NOTES: readonly DemoNote[] = [
     title: 'Supporting structures',
     detail: `Crown loading is ${scenario.crownLoading}, cortical bone is ${scenario.corticalBone}, and periodontal ligament loading is ${scenario.periodontalLigament}. Each is above its demonstration mark.`,
   },
+];
+
+const wisdom = biteScenario('bite-03');
+if (!wisdom || wisdom.fdi !== '48') throw new Error('Tooth 48 scenario bite-03 is missing.');
+const wisdomPeak = Math.max(...wisdom.pressure.map((zone) => zone.mpa));
+const wisdomZone = wisdom.pressure.reduce((best, zone) => (zone.mpa > best.mpa ? zone : best));
+const wisdomBalance = caseBalance('48');
+
+export const EXTRACTION_FACTORS: readonly DemoFactor[] = [
+  factor('Applied bite force', wisdom.biteForceN, `${wisdom.biteForceN} N`, 400, 'Demonstration mark is 400 N. This impacted-molar record sits under it.'),
+  factor('Peak contact pressure', wisdomPeak, `${wisdomPeak.toFixed(1)} MPa`, 14, `Highest zone is the ${wisdomZone.zone.toLowerCase()} of tooth 48.`),
+  factor('Contact area', wisdom.contactAreaMm2, `${wisdom.contactAreaMm2} mm²`, 18, 'Under the 18 mm² demonstration mark. The third molar meets a smaller area than tooth 36.'),
+  factor('Left-right balance', wisdomBalance.right, `${wisdomBalance.left}% left · ${wisdomBalance.right}% right`, 70, 'Tooth 48 carries the 24% peak, so the right side of this arch is heavier than the tooth 36 record.'),
+  factor('Cusp interference', wisdom.cuspInterference, String(wisdom.cuspInterference), 50, 'Above the demonstration mark of 50. The impacted crown meets the opposing tooth unevenly.'),
+  factor('Crown loading', wisdom.crownLoading, String(wisdom.crownLoading), 55, 'Tooth 48 carries the largest arch share in this record, 24% of the illustrative total.'),
+  factor('Cortical bone loading', wisdom.corticalBone, String(wisdom.corticalBone), BONE_THRESHOLDS.corticalBone, `Demonstration mark is ${BONE_THRESHOLDS.corticalBone}.`),
+  factor('Trabecular bone loading', wisdom.trabecularBone, String(wisdom.trabecularBone), BONE_THRESHOLDS.trabecularBone, `Demonstration mark is ${BONE_THRESHOLDS.trabecularBone}.`),
+  factor('Periodontal ligament loading', wisdom.periodontalLigament, String(wisdom.periodontalLigament), BONE_THRESHOLDS.periodontalLigament, `Demonstration mark is ${BONE_THRESHOLDS.periodontalLigament}.`),
+  factor('TMJ loading', wisdom.tmjLoading, String(wisdom.tmjLoading), BONE_THRESHOLDS.tmjLoading, `Demonstration mark is ${BONE_THRESHOLDS.tmjLoading}.`),
+  factor('Load concentration', wisdom.loadConcentration, String(wisdom.loadConcentration), 60, 'Above the demonstration mark of 60. The load sits on the impacted crown rather than a prepared crown.'),
+];
+
+export const EXTRACTION_NOTES: readonly DemoNote[] = [
+  {
+    title: 'Contact on tooth 48',
+    detail: `The peak zone is the ${wisdomZone.zone.toLowerCase()} at ${wisdomPeak.toFixed(1)} MPa. The colors use the same contact scale as the root-canal report.`,
+  },
+  {
+    title: 'Arch loading after the swap',
+    detail: `${wisdomBalance.right}% of the illustrative force is on the right. Tooth 48 is ${caseForce('48', '48')}% of the arch total. Tooth 18 carries the same share.`,
+  },
+  {
+    title: 'Extraction and the bite',
+    detail: 'The section and lift above remove only tooth 48. This contact map is the bite before that tooth leaves the arch. It is not a crown seating.',
+  },
+  {
+    title: 'Supporting structures',
+    detail: `Crown loading is ${wisdom.crownLoading}, cortical bone is ${wisdom.corticalBone}, and periodontal ligament loading is ${wisdom.periodontalLigament}.`,
+  },
+];
+
+export const EXTRACTION_REVIEW: readonly string[] = [
+  `Review the ${wisdomZone.zone.toLowerCase()} contact on tooth 48. It is the peak at ${wisdomPeak.toFixed(1)} MPa.`,
+  `Compare that contact with the left side. This record puts ${wisdomBalance.right}% of the force on the right.`,
+  'The extraction sequence removes tooth 48 only. The neighboring teeth stay in the jaw.',
+  `Review load around tooth 48. Periodontal ligament loading is ${wisdom.periodontalLigament} and cortical bone is ${wisdom.corticalBone}.`,
 ];
 
 export const DEMO_REVIEW: readonly string[] = [

@@ -1,5 +1,6 @@
 /** Candidate CBCT viewer: ToothFairy2 volumes in NiiVue, labeled surfaces in the existing Three.js Viewer. */
 import { useEffect, useRef, useState } from 'preact/hooks';
+import * as THREE from 'three';
 import { Niivue, SLICE_TYPE } from '@niivue/niivue';
 import type { CasePackManifest, SlicePlane, ViewerCommand } from '@hoverscan/contracts';
 import { makeCommand } from '@hoverscan/contracts';
@@ -7,7 +8,8 @@ import { parseAppConfig } from '../viewer/appConfig.js';
 import { Viewer } from '../viewer/Viewer.js';
 import { PLANE_AXIS } from '../viewer/logic.js';
 import type { StageControl } from './DentalStage.js';
-import type { CaseNote } from './annotations.js';
+import { TREATMENT_ANCHORS, type CaseNote } from './annotations.js';
+import { TrackingNotes, type NotePin } from './TrackingNotes.js';
 import type { DentalTraining } from './dental-anatomy.js';
 
 export type ScanPoint = { candidateId: string; plane: SlicePlane; voxel: [number, number, number] };
@@ -105,6 +107,7 @@ export function CBCTWorkspace({
   bind: (viewer: StageControl | null) => void;
 }) {
   const surfaceHost = useRef<HTMLDivElement>(null);
+  const pinRef = useRef<NotePin | null>(null);
   const canvasRefs: Record<SlicePlane, { current: HTMLCanvasElement | null }> = {
     axial: useRef<HTMLCanvasElement>(null),
     coronal: useRef<HTMLCanvasElement>(null),
@@ -273,6 +276,28 @@ export function CBCTWorkspace({
     pointCallback.current({ candidateId, plane, voxel: position.map(Math.round) as [number, number, number] });
   }
 
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || notes.length === 0) return;
+    const box = new THREE.Box3();
+    const anchor = new THREE.Vector3();
+    const size = new THREE.Vector3();
+    let frame = 0;
+    const loop = () => {
+      frame = requestAnimationFrame(loop);
+      const patient = viewer.scene.children.find((child) => child instanceof THREE.Group && child.matrixAutoUpdate === false);
+      box.makeEmpty();
+      if (patient) box.setFromObject(patient);
+      if (box.isEmpty()) return;
+      const spot = TREATMENT_ANCHORS[training].spot;
+      box.getSize(size);
+      anchor.set(box.min.x + size.x * spot[0], box.min.y + size.y * spot[1], box.min.z + size.z * spot[2]);
+      pinRef.current?.project(viewer.camera, anchor);
+    };
+    loop();
+    return () => cancelAnimationFrame(frame);
+  }, [notes, training, candidateId]);
+
   return (
     <div class="dv-imaging-shell">
       <div class="dv-view-tabs" role="tablist" aria-label="Imaging views">
@@ -296,6 +321,7 @@ export function CBCTWorkspace({
         <div class="dv-jaw">
           <span class="dv-view-label">SEGMENTED SURFACE</span>
           <div class="dv-surface-host" ref={surfaceHost} />
+          <TrackingNotes notes={notes} pin={pinRef} />
           {surfaceMessage && <span class="dv-surface-message">{surfaceMessage}</span>}
         </div>
         {PLANES.map((plane) => (
@@ -315,7 +341,6 @@ export function CBCTWorkspace({
           </figure>
         ))}
         {status !== 'Research candidate scan · not for diagnosis' && <p class="dv-state">{status}</p>}
-        {notes.length > 0 && <div class="dv-note-count">{notes.length} scan notes</div>}
       </div>
       <div class="dv-source-line">{sourceLine} · {status === 'Research candidate scan · not for diagnosis' ? 'Not for diagnosis' : status}</div>
     </div>

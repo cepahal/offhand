@@ -271,7 +271,9 @@ function build(n: DentalTraining['n']): { layers: BuiltLayer[]; highlight: Highl
   };
 }
 
-export const DENTAL_TRAININGS: DentalTraining[] = ([1, 2, 3, 4, 5] as const).map((n) => {
+const TRAINING_ORDER = [3, 5, 1, 2, 4] as const;
+
+export const DENTAL_TRAININGS: DentalTraining[] = TRAINING_ORDER.map((n) => {
   const built = build(n);
   const copy: Record<DentalTraining['n'], { tabLabel: string; title: string; explanation: string }> = {
     1: {
@@ -338,7 +340,7 @@ function manifest(training: DentalTraining, layers: BuiltLayer[]): CasePackManif
 
 /** One Viewer load for training case n (1–5). Objects are in memory, so no GLB is fetched. */
 export function dentalCase(n: DentalTraining['n']): LoadedCase {
-  const training = DENTAL_TRAININGS[n - 1]!;
+  const training = DENTAL_TRAININGS.find((item) => item.n === n)!;
   const { layers, highlight } = build(n);
   training.highlight.rasMm = highlight.rasMm;
   return {

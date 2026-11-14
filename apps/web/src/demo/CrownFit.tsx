@@ -3,6 +3,9 @@
  * canal filling, and a crown built from that tooth's own occlusal surface.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
+import type { CaseNote } from './annotations.js';
+import { ModelCallouts } from './ModelCallouts.js';
+import { TrackingNotes, type NotePin } from './TrackingNotes.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -86,22 +89,27 @@ function boneMaterial(opacity: number): THREE.MeshStandardMaterial {
 export function CrownFit({
   candidateId,
   bind,
+  scanNotes = [],
 }: {
   candidateId: string;
   bind: (viewer: StageControl | null) => void;
+  scanNotes?: CaseNote[];
 }) {
   const mainRef = useRef<HTMLDivElement>(null);
   const occlusalRef = useRef<HTMLDivElement>(null);
   const mesialRef = useRef<HTMLDivElement>(null);
   const distalRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLElement>(null);
+  const pinRef = useRef<NotePin | null>(null);
+  const notesRef = useRef(scanNotes);
+  notesRef.current = scanNotes;
   const progressRef = useRef(progressForStage(5));
   const playingRef = useRef(false);
   const [progress, setProgress] = useState(progressForStage(5));
   const [playing, setPlaying] = useState(false);
   const [status, setStatus] = useState('Loading tooth 36 from this candidate…');
   const [split, setSplit] = useState({ mesial: 50, distal: 50 });
-  const [labels, setLabels] = useState<Array<{ id: string; text: string; x: number; y: number }>>([]);
+  const [labels, setLabels] = useState<Array<{ id: string; text: string; x: number; y: number; behind?: boolean }>>([]);
   playingRef.current = playing;
 
   useEffect(() => {
@@ -368,7 +376,7 @@ export function CrownFit({
       const dt = now - last;
       last = now;
       if (playingRef.current) {
-        const next = progressRef.current + dt / 14000;
+        const next = progressRef.current + dt / 1600;
         progressRef.current = next >= 1 ? 1 : next;
         if (next >= 1) setPlaying(false);
         setProgress(progressRef.current);
@@ -376,6 +384,7 @@ export function CrownFit({
       applyPose(poseAt(progressRef.current));
       controls.update();
       mainRenderer.render(scene, mainCamera);
+      if (notesRef.current.length > 0) pinRef.current?.project(mainCamera, anchors.axis);
       occlusalRenderer.render(scene, occlusalCamera);
       mesialRenderer.render(scene, mesialCamera);
       distalRenderer.render(scene, distalCamera);
@@ -384,7 +393,7 @@ export function CrownFit({
       const rect = mainHost.getBoundingClientRect();
       const project = (point: THREE.Vector3) => {
         const v = point.clone().project(mainCamera);
-        return { x: (v.x * 0.5 + 0.5) * rect.width, y: (-v.y * 0.5 + 0.5) * rect.height };
+        return { x: (v.x * 0.5 + 0.5) * rect.width, y: (-v.y * 0.5 + 0.5) * rect.height, behind: v.z > 1 };
       };
       if (ready && crown.visible) {
         const raised = anchors.clearance.clone();
@@ -453,7 +462,7 @@ export function CrownFit({
         <span class="cf-pill">FDI 36</span>
         <span class="cf-pill">Illustrative</span>
         <div class="cf-transport">
-          <button type="button" onClick={() => { if (progressRef.current >= 1) jump(0); setPlaying(true); }}>Play</button>
+          <button type="button" onClick={() => { if (stageIndex(progressRef.current) >= CROWN_STAGES.length - 1) { progressRef.current = 0; setProgress(0); } setPlaying(true); }}>Play</button>
           <button type="button" onClick={() => setPlaying(false)}>Pause</button>
           <button type="button" onClick={() => { jump(0); setPlaying(true); }}>Replay</button>
           <button type="button" onClick={() => jump(0)}>Reset</button>
@@ -467,7 +476,8 @@ export function CrownFit({
       <div class="cf-grid">
         <div class="cf-main" data-orbit>
           <div class="cf-view" ref={mainRef} />
-          {labels.map((label) => <span key={label.id} class="cf-callout" style={{ left: `${label.x}px`, top: `${label.y}px` }}>{label.text}</span>)}
+          <ModelCallouts labels={labels} />
+          <TrackingNotes notes={scanNotes} pin={pinRef} />
           <div class="cf-tools">
             <button type="button" aria-label="Zoom in" onClick={() => stageRef.current?.dispatchEvent(new CustomEvent('cf-zoom', { detail: 1.12 }))}>+</button>
             <button type="button" aria-label="Zoom out" onClick={() => stageRef.current?.dispatchEvent(new CustomEvent('cf-zoom', { detail: 1 / 1.12 }))}>−</button>

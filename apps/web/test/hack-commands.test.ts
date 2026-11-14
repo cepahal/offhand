@@ -14,6 +14,18 @@ describe('Hack commands', () => {
       command: 'message_hospital',
     });
     expect(interpretCommand("view patient's dental scans").command).toBe('view_scans');
+    expect(interpretCommand('Open bite simulation.').command).toBe('open_bite');
+    expect(interpretCommand("Show the patient's data.").command).toBe('show_patient');
+    expect(interpretCommand('Create a note about the right condyle.')).toMatchObject({ command: 'add_note', text: 'The right condyle' });
+    expect(interpretCommand('Change the prescription to ibuprofen.')).toMatchObject({ command: 'change_prescription', medication: 'ibuprofen' });
+    expect(interpretCommand('Send a message to the patient that their appointment has been scheduled.')).toMatchObject({
+      command: 'message_patient',
+      text: 'Your appointment has been scheduled.',
+    });
+    expect(interpretCommand('Send a message to the hospital that the treatment plan has been updated.')).toMatchObject({
+      command: 'message_hospital',
+      text: 'Hospital update: The treatment plan has been updated.',
+    });
     expect(interpretCommand('Hack, open bite simulation.').command).toBe('open_bite');
     expect(interpretCommand('Hack, simulate bite force on tooth 19.')).toMatchObject({ command: 'simulate_bite', tooth: '19' });
     expect(interpretCommand('Hack, check for bone overload.').command).toBe('show_bone');

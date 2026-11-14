@@ -4,6 +4,7 @@ import {
   ARCH_FORCE,
   DEMO_FACTORS,
   DEMO_REVIEW,
+  caseForce,
   centerOfForce,
   crownContactT,
   forceAt,
@@ -20,6 +21,8 @@ describe('tooth 36 occlusal dataset', () => {
     expect(balance).toEqual({ left: 71, right: 29 });
     expect(toothForce('36')).toBe(Math.max(...ARCH_FORCE.map((tooth) => tooth.percent)));
     expect(toothForce('26')).toBe(toothForce('36'));
+    expect(caseForce('48', '48')).toBe(toothForce('36'));
+    expect(caseForce('36', '36')).toBe(toothForce('36'));
     expect(toothForce('16')).toBe(toothForce('46'));
     const scenario = biteScenario('bite-02');
     expect(scenario?.leftPercent).toBe(balance.left);

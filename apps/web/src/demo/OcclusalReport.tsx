@@ -13,14 +13,18 @@ import {
   DEMO_FACTORS,
   DEMO_NOTES,
   DEMO_REVIEW,
+  EXTRACTION_FACTORS,
+  EXTRACTION_NOTES,
+  EXTRACTION_REVIEW,
   LOWER_ORDER,
   UPPER_ORDER,
+  caseBalance,
+  caseForce,
   crownContactT,
   forceSamples,
   rampColor,
   rampHex,
-  sideBalance,
-  toothForce,
+  type ReportFocus,
 } from './occlusal-dataset.js';
 
 const RAS = new THREE.Matrix4().set(
@@ -31,9 +35,9 @@ const RAS = new THREE.Matrix4().set(
 );
 
 const OPEN_MM = 18;
-const CLOSE_S = 2.2;
-const HOLD_S = 2.6;
-const REOPEN_S = 1.8;
+const CLOSE_S = 0.7;
+const HOLD_S = 0.45;
+const REOPEN_S = 0.65;
 
 function bake(root: THREE.Object3D): THREE.BufferGeometry | null {
   root.updateMatrixWorld(true);
@@ -59,13 +63,14 @@ function bake(root: THREE.Object3D): THREE.BufferGeometry | null {
   return geometry;
 }
 
-function contactColors(geometry: THREE.BufferGeometry, fdi: string): Float32Array {
+function contactColors(geometry: THREE.BufferGeometry, fdi: string, focus: ReportFocus): Float32Array {
   const position = geometry.getAttribute('position');
   geometry.computeBoundingBox();
   const box = geometry.boundingBox!;
   const height = Math.max(0.001, box.max.y - box.min.y);
   const upper = fdi.startsWith('1') || fdi.startsWith('2');
-  const share = toothForce(fdi) / Math.max(0.001, toothForce('36'));
+  const peak = focus === '48' ? '48' : '36';
+  const share = caseForce(fdi, focus) / Math.max(0.001, caseForce(peak, focus));
   const colors = new Float32Array(position.count * 3);
   const enamel: [number, number, number] = [0.95, 0.92, 0.86];
   for (let i = 0; i < position.count; i++) {
@@ -114,10 +119,11 @@ function archPoint(index: number, count: number, arch: 'upper' | 'lower'): { x: 
   return { x, y };
 }
 
-function ArchChart({ arch }: { arch: 'upper' | 'lower' }) {
+function ArchChart({ arch, focus }: { arch: 'upper' | 'lower'; focus: ReportFocus }) {
   const order = arch === 'upper' ? UPPER_ORDER : LOWER_ORDER;
-  const points = order.map((fdi, index) => ({ fdi, ...archPoint(index, order.length, arch), percent: toothForce(fdi) }));
-  const balance = sideBalance();
+  const peak = focus === '48' ? '48' : '36';
+  const points = order.map((fdi, index) => ({ fdi, ...archPoint(index, order.length, arch), percent: caseForce(fdi, focus) }));
+  const balance = caseBalance(focus);
   const focusY = arch === 'upper' ? 176 : 148;
   let cx = 0;
   let cy = 0;
@@ -168,7 +174,7 @@ function ArchChart({ arch }: { arch: 'upper' | 'lower' }) {
                 cy={point.y + uy * (8 + spot * 6)}
                 rx={Math.max(2.4, mark * (1 - spot * 0.2))}
                 ry={Math.max(1.7, mark * 0.58 * (1 - spot * 0.16))}
-                fill={rampHex(point.percent / toothForce('36'))}
+                fill={rampHex(point.percent / caseForce(peak, focus))}
                 opacity="0.95"
               />
             ))}
@@ -196,7 +202,7 @@ function columnPlace(index: number, count: number): { x: number; z: number } {
   return { x, z };
 }
 
-function columnScene(arch: 'upper' | 'lower'): THREE.Scene {
+function columnScene(arch: 'upper' | 'lower', focus: ReportFocus): THREE.Scene {
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffffff, 0xc8c8c8, 1.05));
   const key = new THREE.DirectionalLight(0xffffff, 0.7);
@@ -217,10 +223,10 @@ function columnScene(arch: 'upper' | 'lower'): THREE.Scene {
     new THREE.TubeGeometry(curve, 80, 0.28, 5, false),
     new THREE.MeshStandardMaterial({ color: '#c5c5c5', roughness: 0.8 }),
   ));
-  const peak = toothForce('36');
+  const peak = caseForce(focus === '48' ? '48' : '36', focus);
   order.forEach((fdi, index) => {
     const place = columnPlace(index, order.length);
-    const percent = toothForce(fdi);
+    const percent = caseForce(fdi, focus);
     const share = percent / peak;
     const height = 2.2 + share * 24;
     const copies = percent >= 14 ? 3 : percent >= 6 ? 2 : 1;
@@ -254,7 +260,7 @@ function columnScene(arch: 'upper' | 'lower'): THREE.Scene {
   return scene;
 }
 
-export function OcclusalReport({ candidateId }: { candidateId: string }) {
+export function OcclusalReport({ candidateId, focus = '36' }: { candidateId: string; focus?: ReportFocus }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const upperRef = useRef<HTMLDivElement>(null);
   const lowerRef = useRef<HTMLDivElement>(null);
@@ -333,7 +339,7 @@ export function OcclusalReport({ candidateId }: { candidateId: string }) {
           const fdi = layer.id.slice('tooth-'.length);
           const count = layer.geometry.getAttribute('position').count;
           const enamel = enamelColors(count);
-          const contact = contactColors(layer.geometry, fdi);
+          const contact = contactColors(layer.geometry, fdi, focus);
           const attribute = new THREE.BufferAttribute(enamel.slice(), 3);
           layer.geometry.setAttribute('color', attribute);
           painted.push({ attribute, enamel, contact });
@@ -436,15 +442,15 @@ export function OcclusalReport({ candidateId }: { candidateId: string }) {
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [candidateId]);
+  }, [candidateId, focus]);
 
   useEffect(() => {
     const upperHost = upperRef.current;
     const lowerHost = lowerRef.current;
     if (!upperHost || !lowerHost) return;
     let stopped = false;
-    const upperScene = columnScene('upper');
-    const lowerScene = columnScene('lower');
+    const upperScene = columnScene('upper', focus);
+    const lowerScene = columnScene('lower', focus);
     const make = (host: HTMLDivElement, scene: THREE.Scene) => {
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -502,10 +508,15 @@ export function OcclusalReport({ candidateId }: { candidateId: string }) {
         });
       }
     };
-  }, []);
+  }, [focus]);
 
   const width = 640;
   const height = 150;
+  const peakTooth = focus === '48' ? '48' : '36';
+  const factors = focus === '48' ? EXTRACTION_FACTORS : DEMO_FACTORS;
+  const notes = focus === '48' ? EXTRACTION_NOTES : DEMO_NOTES;
+  const review = focus === '48' ? EXTRACTION_REVIEW : DEMO_REVIEW;
+  const balance = caseBalance(focus);
   const line = (key: 'total' | 'tooth36') => samples.map((sample, index) => {
     const x = (sample.second / 10.5) * width;
     const y = height - 16 - (sample[key] / 100) * (height - 28);
@@ -517,7 +528,7 @@ export function OcclusalReport({ candidateId }: { candidateId: string }) {
       <section class="oc-block" aria-label="Occlusal contact map">
         <header class="oc-map-head">
           <div>
-            <p class="dv-overline">BOTH JAWS · TOOTH 36 AND THE OPPOSING TOOTH</p>
+            <p class="dv-overline">BOTH JAWS · TOOTH {peakTooth} AND THE OPPOSING TOOTH</p>
             <h2>Occlusal contact map</h2>
           </div>
           <button type="button" onClick={() => { runRef.current = true; setPhase('closing'); }} disabled={phase === 'closing' || phase === 'holding' || phase === 'opening'}>
@@ -533,12 +544,12 @@ export function OcclusalReport({ candidateId }: { candidateId: string }) {
           <h2>Illustrative occlusal report</h2>
         </header>
         <div class="oc-sheets">
-          <ArchChart arch="upper" />
+          <ArchChart arch="upper" focus={focus} />
           <div class="oc-colview" data-orbit ref={upperRef} />
-          <ArchChart arch="lower" />
+          <ArchChart arch="lower" focus={focus} />
           <div class="oc-colview" data-orbit ref={lowerRef} />
         </div>
-        <p class="oc-note">Upper shares match the opposing lower tooth. Tooth 26 carries the same 24% as tooth 36. Left is 71% and right is 29% on both arches.</p>
+        <p class="oc-note">Upper shares match the opposing lower tooth. Tooth {focus === '48' ? '18' : '26'} carries the same {caseForce(peakTooth, focus)}% as tooth {peakTooth}. Left is {balance.left}% and right is {balance.right}% on both arches.</p>
         <div class="oc-panel oc-time">
           <h3>Force versus time</h3>
           <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Illustrative force over 10.5 seconds">
@@ -548,18 +559,18 @@ export function OcclusalReport({ candidateId }: { candidateId: string }) {
               <text key={second} x={(second / 10.5) * width} y={height - 2} fill="#999a91" fontSize="10">{second}s</text>
             ))}
             <text x="8" y="14" fill="#e2c14a" fontSize="10">Total</text>
-            <text x="52" y="14" fill="#d24b4b" fontSize="10">Tooth 36 · {toothForce('36')}% of total</text>
+            <text x="52" y="14" fill="#d24b4b" fontSize="10">Tooth {peakTooth} · {caseForce(peakTooth, focus)}% of total</text>
           </svg>
-          <p>Rest, first contact near 3–4 s, peak at 9.2 s, release by 10.3 s, then rest. Tooth 36 follows the same curve at its arch share.</p>
+          <p>Rest, first contact near 3–4 s, peak at 9.2 s, release by 10.3 s, then rest. Tooth {peakTooth} follows the same curve at its arch share.</p>
         </div>
       </section>
       <section class="oc-block" aria-label="Biomechanical factors">
         <header>
           <p class="dv-overline">DEMONSTRATION MARKS, NOT CLINICAL REFERENCE RANGES</p>
-          <h2>Crown biomechanics · tooth 36</h2>
+          <h2>{focus === '48' ? 'Bite biomechanics · tooth 48' : 'Crown biomechanics · tooth 36'}</h2>
         </header>
         <ol class="oc-factors">
-          {DEMO_FACTORS.map((item) => (
+          {factors.map((item) => (
             <li key={item.name}>
               <div><b>{item.name}</b><span class={`oc-status is-${item.status.toLowerCase()}`}>{item.status}</span></div>
               <strong>{item.value}</strong>
@@ -575,14 +586,14 @@ export function OcclusalReport({ candidateId }: { candidateId: string }) {
           <h2>Analysis and suggested review</h2>
         </header>
         <div class="oc-notes">
-          {DEMO_NOTES.map((note) => (
+          {notes.map((note) => (
             <article key={note.title}><h3>{note.title}</h3><p>{note.detail}</p></article>
           ))}
         </div>
         <ul class="oc-review">
-          {DEMO_REVIEW.map((item) => <li key={item}>{item}</li>)}
+          {review.map((item) => <li key={item}>{item}</li>)}
         </ul>
-        <p class="oc-note">These notes do not prescribe a crown adjustment and do not decide a clinical design.</p>
+        <p class="oc-note">{focus === '48' ? 'These notes do not prescribe an extraction and do not decide a clinical design.' : 'These notes do not prescribe a crown adjustment and do not decide a clinical design.'}</p>
       </section>
     </div>
   );

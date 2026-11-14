@@ -12,6 +12,7 @@ import type { StageControl } from './DentalStage.js';
 import { resolveTooth } from './bite-analysis.js';
 import { BiteSimulation } from './BiteSimulation.js';
 import { CrownFit } from './CrownFit.js';
+import { ExtractionPlan } from './ExtractionPlan.js';
 import { OcclusalReport } from './OcclusalReport.js';
 import { useHackAssistant } from './hack-session.js';
 import { PatientDatabase } from './PatientDatabase.js';
@@ -196,7 +197,7 @@ export function DentalView() {
           </button>
         </div>
       </header>
-      <div class={`dv-body grid min-h-0 ${page === 'bite' && active.n === 3 ? 'is-crown' : ''}`}>
+      <div class={`dv-body grid min-h-0 ${page === 'bite' && (active.n === 3 || active.n === 5) ? 'is-crown' : ''}`}>
         <nav class="dv-nav">
           <span class="dv-rail-label">WORKSPACE</span>
           <button class={page === 'view' ? 'on' : ''} type="button" onClick={() => setPage('view')}><Tooth /><span>Scan review</span></button>
@@ -212,7 +213,7 @@ export function DentalView() {
         </nav>
         <main class="dv-main min-w-0 min-h-0">
           <div class="dv-main-head">
-            <div><span class="dv-overline">CASE WORKSPACE / {candidate.id.toUpperCase()}</span><h1>{page === 'view' ? active.title : page === 'bite' && active.n === 3 ? 'Crown fit analysis · tooth 36' : page === 'bite' ? 'Pressure analysis' : page[0]!.toUpperCase() + page.slice(1)}</h1></div>
+            <div><span class="dv-overline">CASE WORKSPACE / {candidate.id.toUpperCase()}</span><h1>{page === 'view' ? active.title : page === 'bite' && active.n === 3 ? 'Crown fit analysis · tooth 36' : page === 'bite' && active.n === 5 ? 'Extraction planning · tooth 48' : page === 'bite' ? 'Pressure analysis' : page[0]!.toUpperCase() + page.slice(1)}</h1></div>
             <div class="dv-case-tags"><span>FDI {['18 / 48', '28 / 38', '36', '11', '48'][active.n - 1]}</span><span>Research candidate</span></div>
           </div>
           <div class="dv-main-content">
@@ -220,8 +221,13 @@ export function DentalView() {
               <NeuroStage training={training} setTraining={setTraining} candidateId={candidate.id} onCandidateChange={(id) => setCandidateSelection((current) => ({ ...current, [active.n]: id }))} onTrainingCandidateChange={selectCandidate} viewer={viewer} notes={caseNotes} onScanPoint={setScanPoint} command={micNote || hack.command} gestureLabel={gestureLabel} awaiting={hack.pending !== null} onEnableMic={() => { void primeMicrophone().then((error) => setMicNote(error ?? 'Microphone enabled. Wave, then speak in Google Chrome.')); }} />
             ) : page === 'bite' && active.n === 3 ? (
               <div class="cf-scroll">
-                <CrownFit candidateId={candidate.id} bind={(next) => { viewer.current = next; }} />
+                <CrownFit candidateId={candidate.id} bind={(next) => { viewer.current = next; }} scanNotes={caseNotes} />
                 <OcclusalReport candidateId={candidate.id} />
+              </div>
+            ) : page === 'bite' && active.n === 5 ? (
+              <div class="cf-scroll">
+                <ExtractionPlan candidateId={candidate.id} bind={(next) => { viewer.current = next; }} scanNotes={caseNotes} />
+                <OcclusalReport candidateId={candidate.id} focus="48" />
               </div>
             ) : page === 'bite' ? (
               <BiteSimulation trainingTitle={active.title} patientName="Deidentified subject" request={biteRequest} onNote={hack.note} />
