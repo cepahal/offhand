@@ -3,9 +3,8 @@
  * Interim speech is used only to detect "Hack". It is not shown.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { emptyMessaging, releaseMessage, type MessagingState } from '../../../hub/src/messaging/demo-messages.js';
 import { commandFromModel, commandLine, interpretCommand, type HackCommand, type HackPhase } from './hack-commands.js';
-import { hear, idleWake, takeCommand, type WakeState } from './wake.js';
+import { idleWake, takeCommand, type WakeState } from './wake.js';
 import { beginOpenMic } from './voice-listen.js';
 
 export interface HackPending {
@@ -22,6 +21,12 @@ interface HackHandlers {
 
 const SILENCE_MS = 2000;
 
+type Delivery = { status: 'delivered' | 'failed'; subject?: string; reason?: string; duplicate?: boolean };
+
+function needsConfirm(command: HackCommand): boolean {
+  return command.command === 'message_patient' || command.command === 'message_hospital' || command.command === 'change_prescription';
+}
+
 export function useHackAssistant(handlers: HackHandlers): {
   phase: HackPhase;
   command: string;
@@ -29,17 +34,22 @@ export function useHackAssistant(handlers: HackHandlers): {
   log: string[];
   hospitalMessage: string;
   patientMessage: string;
+  pending: HackPending | null;
+  arm: () => void;
   dismissPatient: () => void;
 } {
-  const [phase, setPhase] = useState<HackPhase>('Listening');
-  const [command, setCommand] = useState('Say Hack, then a command.');
-  const [activity, setActivity] = useState('Listening');
+  const [phase, setPhase] = useState<HackPhase>('Idle');
+  const [command, setCommand] = useState('Wave, then speak.');
+  const [activity, setActivity] = useState('Idle');
   const [log, setLog] = useState<string[]>([]);
   const [hospitalMessage, setHospitalMessage] = useState('');
   const [patientMessage, setPatientMessage] = useState('');
+  const [pending, setPending] = useState<HackPending | null>(null);
   const handlersRef = useRef(handlers);
-  const messaging = useRef<MessagingState>(emptyMessaging());
+  const pendingRef = useRef<HackPending | null>(null);
+  const sending = useRef(false);
   handlersRef.current = handlers;
+  pendingRef.current = pending;
 
   function record(label: string): void {
     setLog((current) => [label, ...current].slice(0, 20));
@@ -50,8 +60,9 @@ export function useHackAssistant(handlers: HackHandlers): {
     setPhase('Completed');
     setActivity('Completed');
     window.setTimeout(() => {
-      setPhase('Listening');
-      setActivity('Listening');
+      setPhase('Idle');
+      setActivity('Idle');
+      setCommand('Wave, then speak.');
     }, 1600);
   }
 
@@ -79,88 +90,158 @@ export function useHackAssistant(handlers: HackHandlers): {
       return;
     }
     const role = action.command === 'message_hospital' ? 'hospital' : 'patient';
-    const released = releaseMessage(messaging.current, {
-      shareId: `hack-${role}-${messaging.current.attempted.length + 1}`,
-      role,
-      text: action.text,
-      confirmed: true,
-      clinicianApproved: true,
-      mode: 'simulated',
-      now: new Date().toISOString(),
-    });
-    if (!released.ok) {
-      setPhase('Listening');
-      setActivity(released.reason);
-      setCommand('The message was not sent.');
-      return;
-    }
-    messaging.current = released.state;
-    if (role === 'hospital') setHospitalMessage(action.text);
-    else setPatientMessage(action.text);
-    finish(next.label);
+    if (sending.current) return;
+    sending.current = true;
+    const clientId = crypto.randomUUID();
+    if (role === 'hospital') setHospitalMessage('Sending');
+    else setPatientMessage('Sending');
+    setActivity('Sending');
+    void fetch('/api/dental/message', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ clientId, role, body: action.text, confirmed: true, clinicianApproved: true }),
+    })
+      .then(async (response) => ({ ok: response.ok, result: (await response.json()) as Delivery }))
+      .then(({ result }) => {
+        const status = result.status === 'delivered' ? 'Delivered' : 'Failed';
+        const detail = result.status === 'delivered' ? (result.subject ?? next.label) : (result.reason ?? 'Photon send failed');
+        const line = `${role === 'hospital' ? 'Hospital' : 'Patient'} message ${status.toLowerCase()}: ${detail}`;
+        if (role === 'hospital') setHospitalMessage(`${status}: ${detail}`);
+        else if (result.status === 'delivered') setPatientMessage(`${status}: ${detail}`);
+        else {
+          setPatientMessage('');
+          setCommand(`Failed: ${detail}`);
+        }
+        if (!result.duplicate) record(line);
+        setActivity(status);
+        if (result.status === 'delivered') {
+          setPhase('Completed');
+          window.setTimeout(() => {
+            setPhase('Idle');
+            setActivity('Idle');
+            setCommand('Wave, then speak.');
+          }, 1600);
+        } else {
+          setPhase('Idle');
+          setActivity('Failed');
+          setCommand('Wave, then speak.');
+        }
+      })
+      .catch(() => {
+        if (role === 'hospital') setHospitalMessage('Failed: Photon listener is not connected');
+        else setPatientMessage('');
+        record(`${role === 'hospital' ? 'Hospital' : 'Patient'} message failed: Photon listener is not connected`);
+        setPhase('Idle');
+        setActivity('Failed');
+        setCommand('Wave, then speak.');
+      })
+      .finally(() => {
+        sending.current = false;
+      });
   }
 
   function stage(next: HackCommand): void {
     const label = commandLine(next);
     setCommand(label);
     if (next.command === 'ask') {
-      setPhase('Listening');
+      setPending(null);
+      setPhase('Idle');
       setActivity(next.question);
+      setCommand('Wave, then speak.');
       return;
     }
+    if (needsConfirm(next)) {
+      setPending({ command: next, label });
+      setPhase('Awaiting Confirmation');
+      setActivity('Wave to confirm');
+      setCommand(`${label}. Wave to confirm.`);
+      return;
+    }
+    setPending(null);
     execute({ command: next, label });
   }
 
-  useEffect(() => {
-    let wake: WakeState = idleWake();
-    let timer = 0;
-    const consider = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        const taken = takeCommand(wake, Date.now());
-        wake = taken.state;
-        const heard = taken.command;
-        if (!heard) return;
-        setPhase('Understanding');
-        setActivity('Understanding');
-        setCommand(heard);
-        void fetch('/api/voice/action', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ transcript: heard, patients: [{ name: 'Alex Johnson', mrn: 'synthetic' }] }),
+  const wakeRef = useRef<WakeState>(idleWake());
+  const micRef = useRef<{ stop: () => void } | null>(null);
+  const timerRef = useRef(0);
+  const spokenRef = useRef('');
+
+  function stopMic(): void {
+    window.clearTimeout(timerRef.current);
+    micRef.current?.stop();
+    micRef.current = null;
+    wakeRef.current = idleWake();
+    spokenRef.current = '';
+  }
+
+  function hearCapture(transcript: string, interim: boolean): void {
+    if (wakeRef.current.phase !== 'capture') return;
+    const cleaned = transcript.replace(/^(?:hack[\s,.:;-]*)+/i, '').trim();
+    if (!interim && cleaned) spokenRef.current = `${spokenRef.current} ${cleaned}`.trim();
+    const buffer = (interim ? `${spokenRef.current} ${cleaned}` : spokenRef.current).trim();
+    if (!buffer) return;
+    wakeRef.current = { phase: 'capture', buffer, lastVoiceAt: Date.now() };
+    window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      const taken = takeCommand(wakeRef.current, Date.now());
+      wakeRef.current = taken.state;
+      const heard = taken.command;
+      if (!heard) return;
+      stopMic();
+      setPhase('Understanding');
+      setActivity('Understanding');
+      setCommand(heard);
+      void fetch('/api/voice/action', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ transcript: heard, patients: [{ name: 'Alex Johnson', mrn: 'synthetic' }] }),
+      })
+        .then(async (response) => (response.ok ? response.json() : null))
+        .then((raw: unknown) => {
+          setPhase('Preparing');
+          setActivity('Preparing');
+          const fromModel = raw ? commandFromModel(raw) : null;
+          stage(fromModel && fromModel.command !== 'ask' ? fromModel : interpretCommand(heard));
         })
-          .then(async (response) => (response.ok ? response.json() : null))
-          .then((raw: unknown) => {
-            setPhase('Preparing');
-            setActivity('Preparing');
-            const fromModel = raw ? commandFromModel(raw) : null;
-            stage(fromModel && fromModel.command !== 'ask' ? fromModel : interpretCommand(heard));
-          })
-          .catch(() => {
-            setPhase('Preparing');
-            stage(interpretCommand(heard));
-          });
-      }, SILENCE_MS);
-    };
-    const mic = beginOpenMic({
+        .catch(() => {
+          setPhase('Preparing');
+          stage(interpretCommand(heard));
+        });
+    }, SILENCE_MS);
+  }
+
+  function arm(): void {
+    if (pendingRef.current) {
+      const held = pendingRef.current;
+      if (sending.current) return;
+      pendingRef.current = null;
+      setPending(null);
+      execute(held);
+      return;
+    }
+    stopMic();
+    spokenRef.current = '';
+    wakeRef.current = { phase: 'capture', buffer: '', lastVoiceAt: Date.now() };
+    setPhase('Listening');
+    setActivity('Listening');
+    setCommand('Listening.');
+    micRef.current = beginOpenMic({
       onInterim(value) {
-        wake = hear(wake, value, Date.now());
-        if (wake.phase === 'capture') consider();
+        hearCapture(value, true);
       },
       onText(value) {
-        wake = hear(wake, value, Date.now());
-        if (wake.phase === 'capture') consider();
+        hearCapture(value, false);
       },
       onError(message) {
-        setPhase('Listening');
+        stopMic();
+        setPhase('Idle');
         setActivity(message);
+        setCommand('Wave, then speak.');
       },
     });
-    return () => {
-      window.clearTimeout(timer);
-      mic.stop();
-    };
-  }, []);
+  }
+
+  useEffect(() => () => stopMic(), []);
 
   return {
     phase,
@@ -169,6 +250,8 @@ export function useHackAssistant(handlers: HackHandlers): {
     log,
     hospitalMessage,
     patientMessage,
+    pending,
+    arm,
     dismissPatient() {
       setPatientMessage('');
     },

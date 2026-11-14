@@ -2,6 +2,30 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { dirname } from "node:path";
 import { emptyMessaging, ingestKeyword, persistRoles, type MessagingState, type PersistedRole } from "./demo-messages.js";
 
+function indexPhones(json: string | null): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  if (!json) return map;
+  try {
+    const parsed = JSON.parse(json) as { recipients?: unknown };
+    if (!Array.isArray(parsed.recipients)) return map;
+    for (const item of parsed.recipients) {
+      if (!item || typeof item !== "object") continue;
+      const phone = (item as { phone?: unknown }).phone;
+      if (typeof phone !== "string") continue;
+      const digits = phone.replace(/\D/g, "");
+      const handle = phone.trim().startsWith("+") ? `+${digits}` : digits;
+      if (!handle) continue;
+      const key = digits.slice(-4);
+      const list = map.get(key) ?? [];
+      if (!list.includes(handle)) list.push(handle);
+      map.set(key, list);
+    }
+  } catch {
+    return map;
+  }
+  return map;
+}
+
 function loadHandles(json: string | null, roles: readonly PersistedRole[]): Record<string, string> {
   if (!json) return {};
   try {
@@ -43,6 +67,8 @@ function loadRoles(json: string | null): PersistedRole[] {
 /** Role map for the demonstration. The phone handle stays in memory; the file gets last4 only. */
 export class DemoRoleBook {
   state: MessagingState;
+  /** Last four digits to opted-in handles. Used only to deliver. Never logged. */
+  private readonly phonesByLast4 = new Map<string, string[]>();
 
   constructor(
     private readonly file: string,
@@ -52,6 +78,17 @@ export class DemoRoleBook {
     const json = existsSync(file) ? readFileSync(file, "utf8") : null;
     const roles = loadRoles(json);
     this.state = { ...emptyMessaging(), roles, handles: loadHandles(json, roles) };
+    this.phonesByLast4 = indexPhones(json);
+  }
+
+  /** The handle for a registered role. Falls back to the one recipient that shares that role's last four digits. */
+  handleForRole(role: "hospital" | "patient"): string | undefined {
+    const record = this.state.roles.find((item) => item.role === role);
+    if (!record) return undefined;
+    const direct = this.handleFor(record.ref);
+    if (direct) return direct;
+    const matches = this.phonesByLast4.get(record.last4) ?? [];
+    return matches.length === 1 ? matches[0] : undefined;
   }
 
   ingest(handle: string, text: string): ReturnType<typeof ingestKeyword> {

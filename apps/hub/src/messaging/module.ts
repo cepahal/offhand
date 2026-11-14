@@ -6,7 +6,9 @@ import type { Bus } from "../bus/bus.js";
 import type { ShareContext } from "../integrations/integration.js";
 import type { Logger } from "../log/logger.js";
 import type { HubModule, ModuleHealth } from "../modules.js";
+import { loadClinicIdentity } from "./clinic.js";
 import { assertLiveReady, loadMessagingConfig, maskLine, type MessagingConfig } from "./config.js";
+import { LISTEN_PORT, createDispatcher, type DispatchResult } from "./role-dispatch.js";
 import { DemoRoleBook } from "./demo-role-book.js";
 import { CLINICIAN_APPROVAL_POLICY, SIDE_EFFECT_OPTIONS, releaseMessage, type DemoRole } from "./demo-messages.js";
 import { InboundRouter, ShareLedger } from "./inbound.js";
@@ -215,6 +217,41 @@ export function createMessagingModule(opts: MessagingModuleOptions): MessagingMo
             sentAt: m.sentAt,
           })),
         };
+      });
+
+      app.get("/api/clinic", async (_req, reply) => {
+        try {
+          return loadClinicIdentity();
+        } catch {
+          return reply.code(503).send({ error: "clinic identity is not configured" });
+        }
+      });
+
+      let dentalDispatch: ReturnType<typeof createDispatcher> | undefined;
+      app.post("/api/dental/message", { bodyLimit: 16 * 1024 }, async (req, reply) => {
+        if (channel instanceof PhotonChannel) {
+          const photon = channel;
+          dentalDispatch ??= createDispatcher({
+            clinic: loadClinicIdentity(),
+            book: demoRoles,
+            send: (input) => photon.deliverText(input),
+          });
+          const done = await dentalDispatch(req.body);
+          return reply.code(done.http).send(done.result);
+        }
+        const port = Number(process.env.PHOTON_LISTEN_PORT ?? LISTEN_PORT);
+        try {
+          const upstream = await fetch(`http://127.0.0.1:${port}/dispatch`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(req.body ?? {}),
+            signal: AbortSignal.timeout(25_000),
+          });
+          const result = (await upstream.json()) as DispatchResult;
+          return reply.code(upstream.status).send(result);
+        } catch {
+          return reply.code(503).send({ status: "failed", reason: "Photon listener is not connected" } satisfies DispatchResult);
+        }
       });
 
       app.get("/api/demo/messaging", async () => ({

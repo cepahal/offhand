@@ -15,7 +15,10 @@ import { last4, registrationConfirmation } from "./demo-messages.js";
 import { DemoRoleBook } from "./demo-role-book.js";
 import { InboundRouter, ShareLedger } from "./inbound.js";
 import { alreadyRegisteredLine, ignoredLine, listenBanner, photonListenProblems, registeredLine, safeListenError, waitingLine } from "./photon-listen-env.js";
+import { loadClinicIdentity } from "./clinic.js";
+import { startListenControl } from "./listen-control.js";
 import { PhotonChannel } from "./photon-channel.js";
+import { createDispatcher } from "./role-dispatch.js";
 import { normalizeHandle, RecipientRegistry } from "./recipients.js";
 import type { PhotonSdk } from "./spectrum-sdk.js";
 
@@ -62,8 +65,13 @@ export interface OpenListenerOptions {
   sdk?: PhotonSdk;
 }
 
+export interface RegistrationListener {
+  channel: PhotonChannel;
+  book: DemoRoleBook;
+}
+
 /** The sdk channel only. Does not construct the share flow, the AI module, or the viewer. */
-export function openRegistrationListener(opts: OpenListenerOptions): PhotonChannel {
+export function openRegistrationListener(opts: OpenListenerOptions): RegistrationListener {
   const { config, logger, print } = opts;
   const book = new DemoRoleBook(config.recipientsFile);
   const registry = new RecipientRegistry(config.recipientsFile, {
@@ -73,13 +81,14 @@ export function openRegistrationListener(opts: OpenListenerOptions): PhotonChann
   const ledger = new ShareLedger();
   const router = new InboundRouter({ registry, ledger, emit: () => undefined, logger });
   let bannerPrinted = false;
-  return new PhotonChannel(config, {
+  const channel = new PhotonChannel(config, {
     registry,
     ledger,
     router,
     logger,
     snapshotDir: join(config.recipientsFile, ".."),
     ...(opts.sdk ? { sdk: opts.sdk } : {}),
+    deliveredPoll: { everyMs: 2_000, forMs: 20_000 },
     announce: () => {
       if (bannerPrinted) return;
       bannerPrinted = true;
@@ -97,6 +106,7 @@ export function openRegistrationListener(opts: OpenListenerOptions): PhotonChann
       },
     },
   });
+  return { channel, book };
 }
 
 export interface RunListenerOptions {
@@ -114,15 +124,24 @@ export async function runRegistrationListener(opts: RunListenerOptions): Promise
   const config = loadMessagingConfig({ env: opts.env });
   const logger = createLogger({ level: "info" });
   const print = opts.print ?? ((line: string) => console.log(line));
-  const channel = openRegistrationListener({
+  const opened = openRegistrationListener({
     config,
     logger,
     print,
     ...(opts.sdk ? { sdk: opts.sdk } : {}),
   });
+  const channel = opened.channel;
+  const control = startListenControl(
+    createDispatcher({
+      clinic: loadClinicIdentity(opts.env),
+      book: opened.book,
+      send: (input) => channel.deliverText(input),
+    }),
+  );
   try {
     await channel.start();
   } catch (err) {
+    control.close();
     await channel.stop();
     const message = safeListenError(redactPhone((err as Error).message || "Photon could not connect"), opts.env);
     throw new Error(message, { cause: err });
@@ -131,6 +150,7 @@ export async function runRegistrationListener(opts: RunListenerOptions): Promise
   try {
     await wait();
   } finally {
+    control.close();
     await channel.stop();
   }
 }

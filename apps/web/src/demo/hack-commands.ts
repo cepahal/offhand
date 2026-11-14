@@ -11,7 +11,7 @@ export type HackCommand =
   | { command: 'view_scans' }
   | { command: 'ask'; question: string };
 
-export type HackPhase = 'Listening' | 'Understanding' | 'Preparing' | 'Awaiting Confirmation' | 'Executing' | 'Completed';
+export type HackPhase = 'Idle' | 'Listening' | 'Understanding' | 'Preparing' | 'Awaiting Confirmation' | 'Executing' | 'Completed';
 
 const ASK = 'I did not understand that. Try show data, change prescription, a note, a message, or view scans.';
 const WHICH_MEDICATION = 'Which medication should I enter?';

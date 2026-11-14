@@ -158,7 +158,7 @@ describe("registration channel", () => {
     const printed: string[] = [];
     const { logger } = memoryLogger("info");
     const cfg = messagingConfig({ ...liveMessaging("sdk"), recipientsFile: join(tempDir(), "recipients.json"), line: LINE });
-    channel = openRegistrationListener({ config: cfg, logger, print: (line) => printed.push(line), sdk });
+    channel = openRegistrationListener({ config: cfg, logger, print: (line) => printed.push(line), sdk }).channel;
     await channel.start();
     expect(printed).toEqual([listenBanner("0123"), waitingLine("hospital"), waitingLine("patient")]);
     expect(printed.join("\n")).not.toContain(LINE.replace(/\D/g, ""));
@@ -208,7 +208,7 @@ describe("registration channel", () => {
     const printed: string[] = [];
     const { logger } = memoryLogger("info");
     const cfg = messagingConfig({ ...liveMessaging("sdk"), recipientsFile: join(tempDir(), "recipients.json"), line: LINE });
-    channel = openRegistrationListener({ config: cfg, logger, print: (line) => printed.push(line), sdk });
+    channel = openRegistrationListener({ config: cfg, logger, print: (line) => printed.push(line), sdk }).channel;
     await channel.start();
     const [space, message] = sdk.inbound(PATIENT, { type: "text", text: "patient" });
     (space as unknown as { phone: string }).phone = "shared";

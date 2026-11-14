@@ -13,16 +13,29 @@ import { openPatientWindow, updatePrescription } from './patient-record.js';
 
 type Page = 'view' | 'dashboard' | 'reports' | 'settings';
 
+const DEFAULT_CLINIC = { doctor: 'OYO Clinician', hospital: 'Princeton Medical Center', patientName: 'Alex Johnson', patientId: 'AJ-34' };
+
 export function DentalView() {
   const [page, setPage] = useState<Page>('view');
+  const [clinic, setClinic] = useState(DEFAULT_CLINIC);
   const [training, setTraining] = useState(0);
   const [notes, setNotes] = useState<NoteBook>(emptyNoteBook);
   const viewer = useRef<StageControl | null>(null);
   const [gestureLabel, setGestureLabel] = useState('Board idle');
-  const [noteMode, setNoteMode] = useState(false);
+  const armRef = useRef<() => void>(() => {});
   const active = DENTAL_TRAININGS[training] ?? DENTAL_TRAININGS[0]!;
   const caseRef = useRef(active.n);
   caseRef.current = active.n;
+  useEffect(() => {
+    void fetch('/api/clinic')
+      .then(async (response) => (response.ok ? response.json() : null))
+      .then((value: unknown) => {
+        if (!value || typeof value !== 'object') return;
+        const row = value as Partial<typeof DEFAULT_CLINIC>;
+        if (row.doctor && row.hospital && row.patientName && row.patientId) setClinic({ doctor: row.doctor, hospital: row.hospital, patientName: row.patientName, patientId: row.patientId });
+      })
+      .catch(() => undefined);
+  }, []);
   useEffect(() => {
     setAnnotationSink((text) => {
       setNotes((book) => addCaseNote(book, caseRef.current, text));
@@ -41,8 +54,8 @@ export function DentalView() {
       const action = gate.accept(env.ev, Date.now());
       if (!action) return;
       setGestureLabel(GESTURE_TEXT[env.ev.g] ?? env.ev.g);
-      if (action.type === 'note') {
-        setNoteMode(true);
+      if (action.type === 'wake') {
+        armRef.current();
         return;
       }
       if (action.type === 'peel') {
@@ -62,6 +75,7 @@ export function DentalView() {
       await updatePrescription(medication, true);
     },
   });
+  armRef.current = hack.arm;
   return (
     <div class="dv">
       <header class="dv-top">
@@ -90,13 +104,13 @@ export function DentalView() {
           <button class={page === 'settings' ? 'on' : ''} type="button" onClick={() => setPage('settings')}><Gear />Settings</button>
           <div class="dv-hospital">
             <Shield />
-            <span>Princeton<br />Medical Center</span>
+            <span>{clinic.hospital}</span>
           </div>
         </nav>
         {page === 'view' ? (
-          <NeuroStage training={training} setTraining={setTraining} viewer={viewer} notes={notesFor(notes, active.n)} command={hack.command} gestureLabel={gestureLabel} noteMode={noteMode} />
+          <NeuroStage training={training} setTraining={setTraining} viewer={viewer} notes={notesFor(notes, active.n)} command={hack.command} gestureLabel={gestureLabel} awaiting={hack.pending !== null} />
         ) : (
-          <DummyPage page={page} />
+          <DummyPage page={page} clinic={clinic} />
         )}
         <aside class="dv-right">
           <article class="dv-card">
@@ -125,7 +139,7 @@ export function DentalView() {
             <Building />
             <div>
               <h2>Hospital</h2>
-              <p>Princeton Medical Center{hack.hospitalMessage ? <><br />{hack.hospitalMessage}</> : null}</p>
+              <p>{clinic.hospital}{hack.hospitalMessage ? <><br />{hack.hospitalMessage}</> : null}</p>
             </div>
           </article>
           <article class="dv-card">
@@ -142,10 +156,10 @@ export function DentalView() {
               <p>{hack.log.length === 0 ? 'No commands yet.' : hack.log.map((line, index) => <span key={`${index}-${line}`}>{line}<br /></span>)}</p>
             </div>
           </article>
-          {hack.patientMessage && (
+          {hack.patientMessage.startsWith('Delivered') && (
             <div class="dv-toast">
               <Check />
-              <p><b>Message sent to patient:</b><br />{hack.patientMessage}</p>
+              <p><b>Message delivered to patient:</b><br />{hack.patientMessage}</p>
               <button type="button" aria-label="Dismiss" onClick={hack.dismissPatient}>×</button>
             </div>
           )}
@@ -167,7 +181,7 @@ function NeuroStage({
   notes,
   command,
   gestureLabel,
-  noteMode,
+  awaiting,
 }: {
   training: number;
   setTraining: (index: number) => void;
@@ -175,7 +189,7 @@ function NeuroStage({
   notes: CaseNote[];
   command: string;
   gestureLabel: string;
-  noteMode: boolean;
+  awaiting: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(true);
   const [draft, setDraft] = useState('');
@@ -209,18 +223,18 @@ function NeuroStage({
       <div class="dv-gesture">
         <div class="dv-gesture-head"><Hand />Gesture Controls</div>
         <p><Check />{gestureLabel}</p>
-        <p><Check />{noteMode ? 'Note mode' : 'Wave: note'}</p>
+        <p><Check />{awaiting ? 'Wave: confirm' : 'Wave: listen'}</p>
       </div>
       <div class="dv-cmd">
         <Orb />
-        <span>{noteMode && command.startsWith('Say Hack') ? 'Note mode. Say: Hack, create a note about checking this tooth later.' : command}</span>
+        <span>{command}</span>
         <i />
       </div>
     </section>
   );
 }
 
-function DummyPage({ page }: { page: Exclude<Page, 'view'> }) {
+function DummyPage({ page, clinic }: { page: Exclude<Page, 'view'>; clinic: typeof DEFAULT_CLINIC }) {
   const [sound, setSound] = useState(true);
   const [hints, setHints] = useState(true);
   if (page === 'dashboard') {
@@ -254,7 +268,7 @@ function DummyPage({ page }: { page: Exclude<Page, 'view'> }) {
       <p class="lead">Display choices for this screen. They stay on this browser only.</p>
       <article class="dv-card dv-setting"><div><h2>Command chime</h2><p>{sound ? 'On' : 'Off'}</p></div><button type="button" onClick={() => setSound((v) => !v)}>{sound ? 'Turn off' : 'Turn on'}</button></article>
       <article class="dv-card dv-setting"><div><h2>Training hints</h2><p>{hints ? 'Shown' : 'Hidden'}</p></div><button type="button" onClick={() => setHints((v) => !v)}>{hints ? 'Hide' : 'Show'}</button></article>
-      <article class="dv-card"><h2>Clinic</h2><p>Princeton Medical Center · demonstration seat</p></article>
+      <article class="dv-card"><h2>Clinic</h2><p>{clinic.hospital} · {clinic.doctor}</p></article>
     </section>
   );
 }

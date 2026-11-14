@@ -245,6 +245,26 @@ export class PhotonChannel implements PatientChannel {
     }
   }
 
+  /**
+   * Sends one text on the already open Spectrum connection and waits for isDelivered.
+   * A repeated shareId does not send again.
+   */
+  async deliverText(input: { shareId: string; handle: string; text: string }): Promise<"delivered" | "unconfirmed"> {
+    if (this.attempted.has(input.shareId) || this.deps.ledger.has(input.shareId)) throw new DuplicateShareError(input.shareId);
+    this.attempted.add(input.shareId);
+    const { conn, sdk } = this;
+    if (!conn || !sdk || this.downReason) throw new ChannelDownError(this.downReason ?? "Photon is not connected");
+    const space = await conn.openDm(input.handle);
+    const textMessage = await space.send(sdk.text(input.text));
+    this.events.emit({ shareId: input.shareId, kind: "sent", ts: this.now() });
+    if (!textMessage?.id) return "unconfirmed";
+    if (deliveredFlag(textMessage)) {
+      this.events.emit({ shareId: input.shareId, kind: "delivered", ts: this.now() });
+      return "delivered";
+    }
+    return (await this.watchDelivered(input.shareId, space, textMessage.id)) ? "delivered" : "unconfirmed";
+  }
+
   /** Rewrites the sent card in place with edit(new content, original message). */
   async update(shareId: string, changes: ShareChanges): Promise<void> {
     assertSendableChanges(changes);
@@ -380,20 +400,21 @@ export class PhotonChannel implements PatientChannel {
     else if (outcome?.kind === "opted_out") await space.send(this.sdk.text(OPT_OUT_REPLY));
   }
 
-  private async watchDelivered(shareId: string, space: Space, messageId: string): Promise<void> {
+  private async watchDelivered(shareId: string, space: Space, messageId: string): Promise<boolean> {
     const poll = this.deps.deliveredPoll ?? { everyMs: 3_000, forMs: 60_000 };
-    if (poll.everyMs <= 0) return;
+    if (poll.everyMs <= 0) return false;
     for (let waited = 0; waited < poll.forMs && !this.stopped; waited += poll.everyMs) {
       await new Promise((r) => setTimeout(r, poll.everyMs).unref?.());
       try {
         if (deliveredFlag(await space.getMessage(messageId))) {
           this.events.emit({ shareId, kind: "delivered", ts: this.now() });
-          return;
+          return true;
         }
       } catch {
-        return;
+        return false;
       }
     }
+    return false;
   }
 
   private miniAppContent(sdk: PhotonSdk, shareId: string, text: string): ContentInput {
