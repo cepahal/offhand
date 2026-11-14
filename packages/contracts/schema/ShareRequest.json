@@ -1,0 +1,119 @@
+{
+  "$id": "offhand/ShareRequest.json",
+  "title": "ShareRequest",
+  "x-contracts-version": "1.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "shareId": {
+      "type": "string",
+      "description": "Share id."
+    },
+    "recipientRef": {
+      "type": "string",
+      "description": "Opaque recipient reference (never a raw phone number in logs)."
+    },
+    "bookmarks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "snapshotUrl": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "snapshotUrl",
+          "label"
+        ],
+        "description": "Shared view."
+      },
+      "description": "Views to send."
+    },
+    "verified": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Text that was checked."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "needs_review",
+            "blocked"
+          ],
+          "description": "Check result."
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type",
+              "detail"
+            ],
+            "description": "One check finding."
+          },
+          "description": "Why the status was given."
+        },
+        "policyId": {
+          "type": "string",
+          "description": "Policy used."
+        },
+        "checkedAt": {
+          "type": "string",
+          "description": "ISO timestamp."
+        }
+      },
+      "required": [
+        "text",
+        "status",
+        "findings",
+        "policyId",
+        "checkedAt"
+      ],
+      "description": "Text after a policy check."
+    },
+    "pollOptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "description": "Poll option."
+      },
+      "description": "Poll options."
+    }
+  },
+  "required": [
+    "shareId",
+    "recipientRef",
+    "bookmarks",
+    "verified",
+    "pollOptions"
+  ],
+  "description": "Request to send a share card to a patient."
+}

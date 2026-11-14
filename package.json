@@ -1,0 +1,33 @@
+{
+  "name": "offhand",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Offhand: touchless gesture viewer for 3D medical scans (HackPrinceton Fall 2026).",
+  "type": "module",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @offhand/contracts build && concurrently -k -n hub,web -c blue,magenta \"pnpm --filter @offhand/hub dev\" \"pnpm --filter @offhand/web dev\"",
+    "build": "pnpm -r build",
+    "start": "pnpm --filter @offhand/hub start",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "gen:schema": "pnpm --filter @offhand/contracts gen:schema",
+    "replay": "pnpm --filter @offhand/hub replay",
+    "gesture:monitor": "pnpm --filter @offhand/hub gesture:monitor",
+    "testpattern": "uv run --project pipeline offhand-pipeline testpattern --out casepacks/test-pattern/tp-001"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.7",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.2"
+  }
+}

@@ -1,0 +1,1592 @@
+{
+  "$id": "offhand/BusEnvelope.json",
+  "title": "BusEnvelope",
+  "x-contracts-version": "1.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "ch": {
+          "type": "string",
+          "const": "cmd"
+        },
+        "cmd": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "rotate"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "yawDeg": {
+                  "description": "Yaw around the vertical axis, degrees (+ = turn right).",
+                  "type": "number"
+                },
+                "pitchDeg": {
+                  "description": "Pitch around the screen horizontal axis, degrees (+ = tilt up).",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source"
+              ],
+              "description": "Rotate the 3D view (animated)."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "zoom"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "factor": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "> 1 zooms in, < 1 zooms out."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "factor"
+              ],
+              "description": "Zoom the 3D view (animated)."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "peel"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "dir": {
+                  "type": "string",
+                  "enum": [
+                    "out",
+                    "in"
+                  ],
+                  "description": "out = hide the next outermost layer; in = restore it."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "dir"
+              ],
+              "description": "Peel layers by manifest peelOrder (0 = outermost)."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "set_layer"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "layerId": {
+                  "type": "string",
+                  "description": "Layer id from the case manifest."
+                },
+                "visible": {
+                  "description": "Show/hide.",
+                  "type": "boolean"
+                },
+                "opacity": {
+                  "description": "Opacity 0..1.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "layerId"
+              ],
+              "description": "Set one layer visibility/opacity."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "slice"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "plane": {
+                  "type": "string",
+                  "enum": [
+                    "axial",
+                    "coronal",
+                    "sagittal"
+                  ],
+                  "description": "Slice plane."
+                },
+                "index": {
+                  "description": "Absolute slice index.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "delta": {
+                  "description": "Relative slice step (used when index is absent).",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "plane"
+              ],
+              "description": "Change the 2D slice."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "scrub"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "value": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Normalised scrub position; the app config maps it to slice/time/bite/jaw."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "value"
+              ],
+              "description": "Set the scrub position."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "timepoint"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "index": {
+                  "description": "Absolute timepoint index (manifest order).",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "delta": {
+                  "description": "Relative step (used when index is absent).",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source"
+              ],
+              "description": "Change the active timepoint."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "focus_finding"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "findingId": {
+                  "type": "string",
+                  "description": "Finding id from the manifest, or the literal \"next\" / \"prev\"."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "findingId"
+              ],
+              "description": "Fly the camera to a finding."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "bookmark"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "label": {
+                  "description": "Optional bookmark label.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source"
+              ],
+              "description": "Store the current view (state + snapshot)."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "reset_view"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source"
+              ],
+              "description": "Reset camera, layers and peel to defaults."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "capture"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "requestId": {
+                  "type": "string",
+                  "description": "Correlates the resulting snapshot with the requester."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "requestId"
+              ],
+              "description": "Render a PNG snapshot of the current view."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "mode"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "orbit",
+                    "scrub"
+                  ],
+                  "description": "orbit = discrete gestures turn/zoom/peel; scrub = hand height drives the app scrub axis."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "mode"
+              ],
+              "description": "Switch interaction mode."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "listen"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "on": {
+                  "type": "boolean",
+                  "description": "true = start listening (push-to-talk down)."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "on"
+              ],
+              "description": "Voice push-to-talk."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "explain"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "findingId": {
+                  "description": "Finding to explain; default = focused finding.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source"
+              ],
+              "description": "Ask for a plain-language explanation."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "share_to_patient"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "bookmarkIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Bookmarks to include."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "bookmarkIds"
+              ],
+              "description": "Start the share-to-patient flow."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "confirm"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "for": {
+                  "type": "string",
+                  "description": "What is being confirmed (matches ViewerState.pending.confirmFor)."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "for"
+              ],
+              "description": "Confirm a pending action."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cancel"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "for": {
+                  "type": "string",
+                  "description": "What is being cancelled."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "for"
+              ],
+              "description": "Cancel a pending action."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "load_case"
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Unique command id (uuid)."
+                },
+                "ts": {
+                  "type": "number",
+                  "description": "Creation time, epoch milliseconds."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "gesture",
+                    "mouse",
+                    "keyboard",
+                    "voice",
+                    "integration",
+                    "patient",
+                    "system"
+                  ],
+                  "description": "Which input produced the command."
+                },
+                "app": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]*$",
+                  "description": "App id, e.g. \"chairside\", \"kneeview\", \"neuroview\", \"jawline\", or \"test-pattern\"."
+                },
+                "caseId": {
+                  "type": "string",
+                  "description": "Case id (folder name under casepacks/<app>/)."
+                }
+              },
+              "required": [
+                "type",
+                "id",
+                "ts",
+                "source",
+                "app",
+                "caseId"
+              ],
+              "description": "Load a case pack."
+            }
+          ],
+          "description": "Every input (gesture, mouse, keyboard, voice, integration, patient) becomes one of these."
+        }
+      },
+      "required": [
+        "ch",
+        "cmd"
+      ],
+      "description": "A viewer command."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "ch": {
+          "type": "string",
+          "const": "state"
+        },
+        "state": {
+          "type": "object",
+          "properties": {
+            "app": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]*$",
+                  "description": "App id, e.g. \"chairside\", \"kneeview\", \"neuroview\", \"jawline\", or \"test-pattern\"."
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Loaded app, or null when nothing is loaded."
+            },
+            "caseId": {
+              "description": "Loaded case id, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "camera": {
+              "type": "object",
+              "properties": {
+                "position": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "description": "Camera position (viewer world coordinates)."
+                },
+                "target": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "description": "Orbit target (viewer world coordinates)."
+                },
+                "up": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "description": "Camera up vector."
+                }
+              },
+              "required": [
+                "position",
+                "target",
+                "up"
+              ],
+              "description": "Camera pose."
+            },
+            "layers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Layer id from the manifest."
+                  },
+                  "opacity": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Current opacity."
+                  },
+                  "visible": {
+                    "type": "boolean",
+                    "description": "Current visibility."
+                  }
+                },
+                "required": [
+                  "id",
+                  "opacity",
+                  "visible"
+                ],
+                "description": "Runtime state of one surface layer."
+              },
+              "description": "Per-layer runtime state."
+            },
+            "slice": {
+              "type": "object",
+              "properties": {
+                "plane": {
+                  "type": "string",
+                  "enum": [
+                    "axial",
+                    "coronal",
+                    "sagittal"
+                  ],
+                  "description": "Slice plane."
+                },
+                "index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Slice index."
+                }
+              },
+              "required": [
+                "plane",
+                "index"
+              ],
+              "description": "Current 2D slice."
+            },
+            "timepoint": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Active timepoint index."
+            },
+            "scrub": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Current scrub value."
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "orbit",
+                "scrub"
+              ],
+              "description": "orbit = discrete gestures turn/zoom/peel; scrub = hand height drives the app scrub axis."
+            },
+            "focusedFindingId": {
+              "description": "Focused finding id, or null.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "bookmarks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Bookmark id."
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "Bookmark label."
+                  },
+                  "snapshotUrl": {
+                    "description": "URL of the PNG snapshot served by the hub.",
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "object",
+                    "properties": {
+                      "app": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[a-z0-9][a-z0-9-]*$",
+                            "description": "App id, e.g. \"chairside\", \"kneeview\", \"neuroview\", \"jawline\", or \"test-pattern\"."
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Loaded app, or null when nothing is loaded."
+                      },
+                      "caseId": {
+                        "description": "Loaded case id, or null.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "camera": {
+                        "type": "object",
+                        "properties": {
+                          "position": {
+                            "type": "array",
+                            "prefixItems": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ],
+                            "items": false,
+                            "minItems": 3,
+                            "maxItems": 3,
+                            "description": "Camera position (viewer world coordinates)."
+                          },
+                          "target": {
+                            "type": "array",
+                            "prefixItems": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ],
+                            "items": false,
+                            "minItems": 3,
+                            "maxItems": 3,
+                            "description": "Orbit target (viewer world coordinates)."
+                          },
+                          "up": {
+                            "type": "array",
+                            "prefixItems": [
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "number"
+                              }
+                            ],
+                            "items": false,
+                            "minItems": 3,
+                            "maxItems": 3,
+                            "description": "Camera up vector."
+                          }
+                        },
+                        "required": [
+                          "position",
+                          "target",
+                          "up"
+                        ],
+                        "description": "Camera pose."
+                      },
+                      "layers": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "description": "Layer id from the manifest."
+                            },
+                            "opacity": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1,
+                              "description": "Current opacity."
+                            },
+                            "visible": {
+                              "type": "boolean",
+                              "description": "Current visibility."
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "opacity",
+                            "visible"
+                          ],
+                          "description": "Runtime state of one surface layer."
+                        },
+                        "description": "Per-layer runtime state."
+                      },
+                      "slice": {
+                        "type": "object",
+                        "properties": {
+                          "plane": {
+                            "type": "string",
+                            "enum": [
+                              "axial",
+                              "coronal",
+                              "sagittal"
+                            ],
+                            "description": "Slice plane."
+                          },
+                          "index": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991,
+                            "description": "Slice index."
+                          }
+                        },
+                        "required": [
+                          "plane",
+                          "index"
+                        ],
+                        "description": "Current 2D slice."
+                      },
+                      "timepoint": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991,
+                        "description": "Active timepoint index."
+                      },
+                      "scrub": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "description": "Current scrub value."
+                      },
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "orbit",
+                          "scrub"
+                        ],
+                        "description": "orbit = discrete gestures turn/zoom/peel; scrub = hand height drives the app scrub axis."
+                      },
+                      "focusedFindingId": {
+                        "description": "Focused finding id, or null.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "app",
+                      "caseId",
+                      "camera",
+                      "layers",
+                      "slice",
+                      "timepoint",
+                      "scrub",
+                      "mode",
+                      "focusedFindingId"
+                    ],
+                    "description": "A view without bookmarks/pending (stored inside bookmarks)."
+                  }
+                },
+                "required": [
+                  "id",
+                  "label",
+                  "state"
+                ],
+                "description": "A saved view."
+              },
+              "description": "Saved views."
+            },
+            "pending": {
+              "type": "object",
+              "properties": {
+                "confirmFor": {
+                  "description": "Action awaiting confirm/cancel.",
+                  "type": "string"
+                }
+              },
+              "description": "Pending confirmation, if any."
+            }
+          },
+          "required": [
+            "app",
+            "caseId",
+            "camera",
+            "layers",
+            "slice",
+            "timepoint",
+            "scrub",
+            "mode",
+            "focusedFindingId",
+            "bookmarks",
+            "pending"
+          ],
+          "description": "Viewer state, published by the viewer at most 10 Hz; the hub caches the latest."
+        }
+      },
+      "required": [
+        "ch",
+        "state"
+      ],
+      "description": "Latest viewer state."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "ch": {
+          "type": "string",
+          "const": "gesture"
+        },
+        "ev": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "t": {
+                  "type": "string",
+                  "const": "g",
+                  "description": "Discrete gesture."
+                },
+                "g": {
+                  "type": "string",
+                  "enum": [
+                    "up",
+                    "down",
+                    "left",
+                    "right",
+                    "forward",
+                    "backward",
+                    "cw",
+                    "ccw",
+                    "wave"
+                  ],
+                  "description": "Gesture name as reported by the board (already orientation-corrected by firmware)."
+                },
+                "seq": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Per-boot sequence number, increments per event."
+                },
+                "ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Board uptime in milliseconds (millis())."
+                }
+              },
+              "required": [
+                "t",
+                "g",
+                "seq",
+                "ms"
+              ],
+              "description": "A discrete gesture detected by the PAJ7620U2."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "t": {
+                  "type": "string",
+                  "const": "h",
+                  "description": "Hover sample."
+                },
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Normalised hand X over the sensor, 0..1."
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Normalised hand Y over the sensor, 0..1."
+                },
+                "z": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Normalised proximity, 0 = far/none, 1 = very close."
+                },
+                "seq": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Per-boot sequence number, increments per event."
+                },
+                "ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Board uptime in milliseconds (millis())."
+                }
+              },
+              "required": [
+                "t",
+                "x",
+                "y",
+                "z",
+                "seq",
+                "ms"
+              ],
+              "description": "Continuous hover sample, sent only while an object is in view."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "t": {
+                  "type": "string",
+                  "const": "hb",
+                  "description": "Heartbeat, every 2 s."
+                },
+                "fw": {
+                  "type": "string",
+                  "description": "Firmware version string."
+                },
+                "ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Board uptime in milliseconds (millis())."
+                },
+                "paj": {
+                  "description": "Optional (additive): sensor health as seen by the firmware.",
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "missing",
+                    "lost"
+                  ]
+                }
+              },
+              "required": [
+                "t",
+                "fw",
+                "ms"
+              ],
+              "description": "Board heartbeat. Absence for > timeout means the link is lost."
+            },
+            {
+              "type": "object",
+              "properties": {
+                "t": {
+                  "type": "string",
+                  "const": "err",
+                  "description": "Error report."
+                },
+                "msg": {
+                  "type": "string",
+                  "description": "Human-readable error message."
+                }
+              },
+              "required": [
+                "t",
+                "msg"
+              ],
+              "description": "Error reported by the board firmware."
+            }
+          ],
+          "description": "Line-delimited JSON event emitted by the ESP32 gesture board."
+        }
+      },
+      "required": [
+        "ch",
+        "ev"
+      ],
+      "description": "Raw gesture-board event."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "ch": {
+          "type": "string",
+          "const": "share"
+        },
+        "ev": {
+          "type": "object",
+          "properties": {
+            "shareId": {
+              "type": "string",
+              "description": "Share id."
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "sent",
+                "delivered",
+                "read",
+                "vote",
+                "reaction",
+                "error"
+              ],
+              "description": "Event kind."
+            },
+            "optionId": {
+              "description": "Poll option (vote).",
+              "type": "string"
+            },
+            "selected": {
+              "description": "Vote selected/unselected.",
+              "type": "boolean"
+            },
+            "detail": {
+              "description": "Extra detail.",
+              "type": "string"
+            },
+            "ts": {
+              "type": "number",
+              "description": "Epoch ms."
+            }
+          },
+          "required": [
+            "shareId",
+            "kind",
+            "ts"
+          ],
+          "description": "Delivery/vote/reaction event for a share."
+        }
+      },
+      "required": [
+        "ch",
+        "ev"
+      ],
+      "description": "Share event."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "ch": {
+          "type": "string",
+          "const": "voice"
+        },
+        "ev": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "listening",
+                "transcript",
+                "speaking",
+                "tool",
+                "error"
+              ],
+              "description": "Voice event kind."
+            },
+            "text": {
+              "description": "Transcript/tool/error text.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "description": "Voice module event."
+        }
+      },
+      "required": [
+        "ch",
+        "ev"
+      ],
+      "description": "Voice event."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "ch": {
+          "type": "string",
+          "const": "log"
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "description": "Severity."
+        },
+        "module": {
+          "type": "string",
+          "description": "Emitting module."
+        },
+        "msg": {
+          "type": "string",
+          "description": "Message."
+        },
+        "data": {
+          "description": "Structured extras.",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "ch",
+        "level",
+        "module",
+        "msg"
+      ],
+      "description": "Log line."
+    }
+  ],
+  "description": "Everything on the hub WebSocket is one of these."
+}

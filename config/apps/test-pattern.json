@@ -1,0 +1,4 @@
+{
+  "title": "Test pattern",
+  "scrub": { "target": "clip", "axis": "S", "label": "Clip (inferior → superior)" }
+}

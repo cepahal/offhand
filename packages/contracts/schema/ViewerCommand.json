@@ -1,0 +1,851 @@
+{
+  "$id": "offhand/ViewerCommand.json",
+  "title": "ViewerCommand",
+  "x-contracts-version": "1.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "rotate"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "yawDeg": {
+          "description": "Yaw around the vertical axis, degrees (+ = turn right).",
+          "type": "number"
+        },
+        "pitchDeg": {
+          "description": "Pitch around the screen horizontal axis, degrees (+ = tilt up).",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source"
+      ],
+      "description": "Rotate the 3D view (animated)."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "zoom"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "factor": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "> 1 zooms in, < 1 zooms out."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "factor"
+      ],
+      "description": "Zoom the 3D view (animated)."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "peel"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "dir": {
+          "type": "string",
+          "enum": [
+            "out",
+            "in"
+          ],
+          "description": "out = hide the next outermost layer; in = restore it."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "dir"
+      ],
+      "description": "Peel layers by manifest peelOrder (0 = outermost)."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "set_layer"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "layerId": {
+          "type": "string",
+          "description": "Layer id from the case manifest."
+        },
+        "visible": {
+          "description": "Show/hide.",
+          "type": "boolean"
+        },
+        "opacity": {
+          "description": "Opacity 0..1.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "layerId"
+      ],
+      "description": "Set one layer visibility/opacity."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "slice"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "plane": {
+          "type": "string",
+          "enum": [
+            "axial",
+            "coronal",
+            "sagittal"
+          ],
+          "description": "Slice plane."
+        },
+        "index": {
+          "description": "Absolute slice index.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "delta": {
+          "description": "Relative slice step (used when index is absent).",
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "plane"
+      ],
+      "description": "Change the 2D slice."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "scrub"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "value": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Normalised scrub position; the app config maps it to slice/time/bite/jaw."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "value"
+      ],
+      "description": "Set the scrub position."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "timepoint"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "index": {
+          "description": "Absolute timepoint index (manifest order).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "delta": {
+          "description": "Relative step (used when index is absent).",
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source"
+      ],
+      "description": "Change the active timepoint."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "focus_finding"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "findingId": {
+          "type": "string",
+          "description": "Finding id from the manifest, or the literal \"next\" / \"prev\"."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "findingId"
+      ],
+      "description": "Fly the camera to a finding."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "bookmark"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "label": {
+          "description": "Optional bookmark label.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source"
+      ],
+      "description": "Store the current view (state + snapshot)."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "reset_view"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source"
+      ],
+      "description": "Reset camera, layers and peel to defaults."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "capture"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "requestId": {
+          "type": "string",
+          "description": "Correlates the resulting snapshot with the requester."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "requestId"
+      ],
+      "description": "Render a PNG snapshot of the current view."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "mode"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "orbit",
+            "scrub"
+          ],
+          "description": "orbit = discrete gestures turn/zoom/peel; scrub = hand height drives the app scrub axis."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "mode"
+      ],
+      "description": "Switch interaction mode."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "listen"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "on": {
+          "type": "boolean",
+          "description": "true = start listening (push-to-talk down)."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "on"
+      ],
+      "description": "Voice push-to-talk."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "explain"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "findingId": {
+          "description": "Finding to explain; default = focused finding.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source"
+      ],
+      "description": "Ask for a plain-language explanation."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "share_to_patient"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "bookmarkIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Bookmarks to include."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "bookmarkIds"
+      ],
+      "description": "Start the share-to-patient flow."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "confirm"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "for": {
+          "type": "string",
+          "description": "What is being confirmed (matches ViewerState.pending.confirmFor)."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "for"
+      ],
+      "description": "Confirm a pending action."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "cancel"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "for": {
+          "type": "string",
+          "description": "What is being cancelled."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "for"
+      ],
+      "description": "Cancel a pending action."
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "load_case"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "Unique command id (uuid)."
+        },
+        "ts": {
+          "type": "number",
+          "description": "Creation time, epoch milliseconds."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "gesture",
+            "mouse",
+            "keyboard",
+            "voice",
+            "integration",
+            "patient",
+            "system"
+          ],
+          "description": "Which input produced the command."
+        },
+        "app": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "App id, e.g. \"chairside\", \"kneeview\", \"neuroview\", \"jawline\", or \"test-pattern\"."
+        },
+        "caseId": {
+          "type": "string",
+          "description": "Case id (folder name under casepacks/<app>/)."
+        }
+      },
+      "required": [
+        "type",
+        "id",
+        "ts",
+        "source",
+        "app",
+        "caseId"
+      ],
+      "description": "Load a case pack."
+    }
+  ],
+  "description": "Every input (gesture, mouse, keyboard, voice, integration, patient) becomes one of these."
+}

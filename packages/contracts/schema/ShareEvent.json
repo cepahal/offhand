@@ -1,0 +1,47 @@
+{
+  "$id": "offhand/ShareEvent.json",
+  "title": "ShareEvent",
+  "x-contracts-version": "1.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "shareId": {
+      "type": "string",
+      "description": "Share id."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "sent",
+        "delivered",
+        "read",
+        "vote",
+        "reaction",
+        "error"
+      ],
+      "description": "Event kind."
+    },
+    "optionId": {
+      "description": "Poll option (vote).",
+      "type": "string"
+    },
+    "selected": {
+      "description": "Vote selected/unselected.",
+      "type": "boolean"
+    },
+    "detail": {
+      "description": "Extra detail.",
+      "type": "string"
+    },
+    "ts": {
+      "type": "number",
+      "description": "Epoch ms."
+    }
+  },
+  "required": [
+    "shareId",
+    "kind",
+    "ts"
+  ],
+  "description": "Delivery/vote/reaction event for a share."
+}

@@ -1,0 +1,34 @@
+[project]
+name = "offhand-pipeline"
+version = "0.1.0"
+description = "Offline pipeline: public imaging datasets -> offhand case packs (GLB meshes + NIfTI + manifest.json)."
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=2.0",
+  "nibabel>=5.3",
+  "scikit-image>=0.24",
+  "scipy>=1.13",
+  "trimesh>=4.5",
+  "fast-simplification>=0.1.9",
+  "jsonschema>=4.23",
+  "typer>=0.12",
+]
+
+[project.optional-dependencies]
+dicom = ["SimpleITK>=2.4"]
+
+[project.scripts]
+offhand-pipeline = "offhand_pipeline.cli:app"
+
+[dependency-groups]
+dev = ["pytest>=8.3"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/offhand_pipeline"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

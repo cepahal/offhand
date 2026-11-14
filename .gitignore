@@ -1,0 +1,28 @@
+node_modules/
+dist/
+.vite/
+coverage/
+*.log
+logs/*.jsonl
+snapshots/
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# Large / licensed data never goes in git (dataset licences forbid redistribution in several cases)
+data/
+casepacks/**/*.glb
+casepacks/**/*.nii
+casepacks/**/*.nii.gz
+casepacks/**/*.dcm
+# ...except the generated TEST PATTERN pack, which is synthetic geometry (not anatomy)
+!casepacks/test-pattern/**
+
+# Arduino build output
+firmware/**/build/

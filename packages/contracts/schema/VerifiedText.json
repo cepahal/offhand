@@ -1,0 +1,58 @@
+{
+  "$id": "offhand/VerifiedText.json",
+  "title": "VerifiedText",
+  "x-contracts-version": "1.0.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "Text that was checked."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "needs_review",
+        "blocked"
+      ],
+      "description": "Check result."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "detail"
+        ],
+        "description": "One check finding."
+      },
+      "description": "Why the status was given."
+    },
+    "policyId": {
+      "type": "string",
+      "description": "Policy used."
+    },
+    "checkedAt": {
+      "type": "string",
+      "description": "ISO timestamp."
+    }
+  },
+  "required": [
+    "text",
+    "status",
+    "findings",
+    "policyId",
+    "checkedAt"
+  ],
+  "description": "Text after a policy check."
+}
