@@ -1,15 +1,12 @@
 import preact from '@preact/preset-vite';
-import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, loadEnv } from 'vite';
-import { demoFiles } from './vite-demo-files.js';
 
 // The hub serves app state, commands, and casepack files. In dev, Vite proxies them together.
-// NeuroView volumes are served from this machine so the scanner works while the hub is down.
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '../..', ['HUB_', 'VIEWER_']);
   const hub = `http://127.0.0.1:${env.HUB_PORT ?? '8787'}`;
   return {
-    plugins: [preact(), tailwindcss(), demoFiles()],
+    plugins: [preact()],
     envDir: '../..',
     envPrefix: ['VITE_', 'WHISPER_'],
     server: {

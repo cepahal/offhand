@@ -1,6 +1,7 @@
 /**
- * Hack listens through the existing open microphone and wake word.
- * Interim speech is used only to detect "Hack". It is not shown.
+ * Hack listens through the existing open microphone after a wave.
+ * `heard` carries the words recognised so far, interim results included, so the command bar can
+ * show them as they are spoken. Only the finished phrase is interpreted.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { commandFromModel, commandLine, interpretCommand, type HackCommand, type HackPhase } from './hack-commands.js';
@@ -36,6 +37,8 @@ function needsConfirm(command: HackCommand): boolean {
 export function useHackAssistant(handlers: HackHandlers): {
   phase: HackPhase;
   command: string;
+  /** Words recognised so far while listening; empty otherwise. */
+  heard: string;
   activity: string;
   log: string[];
   hospitalMessage: string;
@@ -47,6 +50,7 @@ export function useHackAssistant(handlers: HackHandlers): {
 } {
   const [phase, setPhase] = useState<HackPhase>('Idle');
   const [command, setCommand] = useState('Wave, then speak.');
+  const [heard, setHeard] = useState('');
   const [activity, setActivity] = useState('Idle');
   const [log, setLog] = useState<string[]>([]);
   const [hospitalMessage, setHospitalMessage] = useState('');
@@ -214,6 +218,7 @@ export function useHackAssistant(handlers: HackHandlers): {
     window.clearTimeout(timerRef.current);
     micRef.current?.stop();
     micRef.current = null;
+    setHeard('');
     wakeRef.current = idleWake();
     spokenRef.current = '';
   }
@@ -224,6 +229,7 @@ export function useHackAssistant(handlers: HackHandlers): {
     if (!interim && cleaned) spokenRef.current = `${spokenRef.current} ${cleaned}`.trim();
     const buffer = (interim ? `${spokenRef.current} ${cleaned}` : spokenRef.current).trim();
     if (!buffer) return;
+    setHeard(buffer);
     wakeRef.current = { phase: 'capture', buffer, lastVoiceAt: Date.now() };
     window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => {
@@ -232,6 +238,7 @@ export function useHackAssistant(handlers: HackHandlers): {
       const heard = taken.command;
       if (!heard) return;
       stopMic();
+      setHeard('');
       setPhase('Understanding');
       setActivity('Understanding');
       setCommand(heard);
@@ -292,6 +299,7 @@ export function useHackAssistant(handlers: HackHandlers): {
   return {
     phase,
     command,
+    heard,
     activity,
     log,
     hospitalMessage,

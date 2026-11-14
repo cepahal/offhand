@@ -15,8 +15,6 @@
     "gesture:monitor": "tsx scripts/gesture-monitor.ts",
     "record:gestures": "tsx scripts/record-gestures.ts",
     "start:live": "tsx src/server.ts",
-    "e2e:live": "tsx scripts/e2e-live.ts",
-    "test:live": "vitest run --config vitest.live.config.ts",
     "test:failclosed": "tsx scripts/fail-closed-gate.ts"
   },
   "dependencies": {

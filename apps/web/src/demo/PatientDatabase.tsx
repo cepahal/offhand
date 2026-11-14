@@ -1,13 +1,15 @@
-/** White patient-record window over the dental viewer. The cursor edit is simulated and confirmed. */
+/** Patient-record sheet over the workstation. The cursor edit is simulated and confirmed. */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   bindPatientWindow,
   closePatientWindow,
   CONFIRMED_PRESCRIPTION,
+  allergyConflict,
   readPatient,
   updatePrescription,
   type PatientRecord,
 } from './patient-record.js';
+import { IconClose } from './icons.js';
 
 type Phase = 'idle' | 'selected' | 'typing' | 'updated';
 
@@ -85,44 +87,54 @@ export function PatientDatabase() {
   const rows: [string, string, string?][] = [
     ['Name', patient.name],
     ['Age', String(patient.age)],
-    ['Initial problem', patient.initialProblem],
+    ['Chief complaint', patient.initialProblem],
     ['Medical history', patient.medicalHistory],
-    ['Allergies', patient.allergies],
-    ['Prescription', shown, 'prescription'],
+    ['Allergies', patient.allergies, 'allergy'],
     ['Diagnosis', patient.diagnosis],
-    ['Treatment required', patient.treatment],
+    ['Plan', patient.treatment],
+    ['Prescription', shown, 'prescription'],
   ];
+  const conflict = allergyConflict(shown, patient.allergies);
 
   return (
-    <div class="dv-db" ref={root} role="dialog" aria-label="Patient record">
-      <div class="dv-db-head">
-        <strong>Patient record</strong>
-        <button type="button" aria-label="Close" onClick={() => closePatientWindow()}>×</button>
+    <>
+      <div class="sheet-scrim" onClick={() => closePatientWindow()} />
+      <div class="sheet" ref={root} role="dialog" aria-label="Patient record">
+        <div class="sheet-head">
+          <div>
+            <h2>Patient record · {patient.name} <span class="allergy-chip">Allergy: {patient.allergies}</span></h2>
+            <p>Synthetic demonstration record · not a real person · not linked to this scan</p>
+          </div>
+          <button type="button" class="btn-plain" aria-label="Close" onClick={() => closePatientWindow()}><IconClose size={18} /></button>
+        </div>
+        <div class="sheet-body">
+          <table>
+            <tbody>
+              {rows.map(([label, value, field]) => (
+                <tr key={label}>
+                  <th class={label === 'Allergies' ? 'alert' : ''}>{label}</th>
+                  <td class={field === 'prescription' ? phase : ''} data-field={field}>
+                    {field === 'allergy' ? <span class="allergy-chip">{value} · allergy</span> : value || ' '}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {conflict && <p class="conflict" role="alert">Conflicts with recorded allergy: {conflict}. Review before confirming.</p>}
+        </div>
+        <div class="sheet-actions">
+          <button type="button" class="btn" onClick={() => closePatientWindow()}>Close</button>
+          <button type="button" class="btn btn-primary" onClick={() => { void updatePrescription(CONFIRMED_PRESCRIPTION, true); }}>
+            Set prescription to {CONFIRMED_PRESCRIPTION}
+          </button>
+        </div>
+        {cursor.visible && (
+          <svg class="ai-cursor" style={{ left: `${cursor.x}px`, top: `${cursor.y}px` }} viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" stroke="#111" stroke-width="1" d="M5 2l14 9-6 1 4 8-3 1-4-8-5 4V2z" />
+          </svg>
+        )}
       </div>
-      <div class="dv-db-sheet">
-      <table>
-        <tbody>
-          {rows.map(([label, value, field]) => (
-            <tr key={label}>
-              <th>{label}</th>
-              <td class={field === 'prescription' ? phase : ''} data-field={field}>{value || ' '}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
-      <div class="dv-db-actions">
-        <button type="button" onClick={() => closePatientWindow()}>Close</button>
-        <button type="button" onClick={() => { void updatePrescription(CONFIRMED_PRESCRIPTION, true); }}>
-          Set prescription to {CONFIRMED_PRESCRIPTION}
-        </button>
-      </div>
-      {cursor.visible && (
-        <svg class="dv-ai-cursor" style={{ left: `${cursor.x}px`, top: `${cursor.y}px` }} viewBox="0 0 24 24" aria-hidden="true">
-          <path fill="currentColor" d="M5 2l14 9-6 1 4 8-3 1-4-8-5 4V2z" />
-        </svg>
-      )}
-    </div>
+    </>
   );
 }
 

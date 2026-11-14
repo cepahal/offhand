@@ -89,15 +89,15 @@ export function BiteSimulation({
   }
 
   return (
-    <section class="dv-page dv-bite">
+    <section class="page bite">
       <h1>Occlusal Biomechanics Simulator</h1>
       <p class="lead">Bite Simulation for {patientName}. Open training case: {trainingTitle}.</p>
-      <p class="dv-bite-flag">{BITE_DISCLAIMER}</p>
-      <div class="dv-bite-controls">
-        <button type="button" onClick={() => setRun(phase === 'done' ? 0 : progressRef.current, 'running')}>Run Simulation</button>
-        <button type="button" onClick={() => setPhase('paused')}>Pause</button>
-        <button type="button" onClick={() => setRun(0, 'running')}>Replay</button>
-        <button type="button" onClick={() => setRun(0, 'ready')}>Reset</button>
+      <p class="flag">{BITE_DISCLAIMER}</p>
+      <div class="bite-controls">
+        <button type="button" class="btn" onClick={() => setRun(phase === 'done' ? 0 : progressRef.current, 'running')}>Run Simulation</button>
+        <button type="button" class="btn" onClick={() => setPhase('paused')}>Pause</button>
+        <button type="button" class="btn" onClick={() => setRun(0, 'running')}>Replay</button>
+        <button type="button" class="btn" onClick={() => setRun(0, 'ready')}>Reset</button>
         <label>Speed <input aria-label="Simulation speed" type="range" min="0.5" max="2" step="0.5" value={speed} onInput={(event) => setSpeed(Number(event.currentTarget.value))} /></label>
         <label>
           Select tooth
@@ -108,7 +108,8 @@ export function BiteSimulation({
           </select>
         </label>
       </div>
-      <div class="dv-bite-pick" role="listbox" aria-label="Change scenario">
+      <div class="progress" role="progressbar" aria-label="Simulation progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)}><i style={{ width: `${Math.round(progress * 100)}%` }} /></div>
+      <div class="bite-pick" role="listbox" aria-label="Change scenario">
         {BITE_SCENARIOS.map((item) => (
           <button key={item.id} type="button" role="option" aria-selected={item.id === scenario.id} class={item.id === scenario.id ? 'on' : ''} onClick={() => choose(item.id)}>
             {item.id.slice(5)} · FDI {item.fdi}
@@ -116,7 +117,7 @@ export function BiteSimulation({
         ))}
       </div>
       {/* TODO(offhand): load the future GLB bite-force map here. */}
-      <button class="dv-bite-map-button" type="button" aria-label="Open bite force map">
+      <button class="btn" type="button" aria-label="Open bite force map">
         Open bite force map
       </button>
       <BoneOverload scenario={scenario} />
@@ -132,27 +133,23 @@ const STATUS_COLOR: Record<FactorStatus, string> = {
   'Exceeds Demo Threshold': '#c87869',
 };
 
-function Pulse() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 12h4l2-5 4 10 2-5h6v2h-4l-2 5-4-10-2 5H3z" /></svg>;
-}
-
 function AnalysisPanel({ scenario, focus }: { scenario: BiteScenario; focus: 'bone' | 'analysis' | 'adjustments' | null }) {
   const factors = biteFactors(scenario);
   const findings = biteFindings(scenario);
   const exceeded = factors.filter((factor) => factor.status === 'Exceeds Demo Threshold').length;
   return (
-    <div class="dv-bite-results">
-      <article class="dv-card" id="bite-analysis">
+    <div class="cols">
+      <article class="sect" id="bite-analysis">
         <h2>Simulation overview</h2>
-        <p class="dv-bite-flag">{BITE_DISCLAIMER}</p>
-        <dl class="dv-bite-rows">
+        <p class="flag">{BITE_DISCLAIMER}</p>
+        <dl class="kv">
           <div><dt>Selected tooth</dt><dd>FDI {scenario.fdi} · Universal {scenario.universal}</dd></div>
           <div><dt>Simulated bite force</dt><dd>{scenario.biteForceN} N</dd></div>
           <div><dt>Overall loading</dt><dd style={{ color: STATUS_COLOR[overallClass(factors)] }}>{overallClass(factors)}</dd></div>
           <div><dt>Factors over threshold</dt><dd>{exceeded} of {factors.length}</dd></div>
         </dl>
         <h2>11 biomechanical factors</h2>
-        <ul class="dv-factors">
+        <ul class="factors">
           {factors.map((factor) => (
             <li key={factor.name}>
               <span>{factor.name}</span>
@@ -164,21 +161,21 @@ function AnalysisPanel({ scenario, focus }: { scenario: BiteScenario; focus: 'bo
           ))}
         </ul>
       </article>
-      <article class="dv-card" id="bite-adjustments">
+      <article class="sect" id="bite-adjustments">
         <h2>Potential biomechanical issues</h2>
         <p class="lead">Illustrative suggestions requiring clinician assessment. Not a diagnosis.</p>
         {findings.length === 0 ? <p>No demonstration threshold was crossed for this scenario.</p> : (
-          <ul class="dv-findings">
+          <ul class="findings">
             {findings.map((finding) => <li key={finding.title}>{finding.title}</li>)}
           </ul>
         )}
         <h2>Suggested adjustments</h2>
         {findings.length === 0 ? <p>No adjustment is suggested from these demonstration rules.</p> : (
-          <ul class="dv-findings">
+          <ul class="findings">
             {findings.map((finding) => <li key={finding.suggestion}>{finding.suggestion}</li>)}
           </ul>
         )}
-        {focus === 'adjustments' ? <p class="dv-bite-flag">Showing suggested adjustments for this scenario.</p> : null}
+        {focus === 'adjustments' ? <p class="flag">Showing suggested adjustments for this scenario.</p> : null}
       </article>
     </div>
   );
@@ -191,18 +188,18 @@ function BoneOverload({ scenario }: { scenario: BiteScenario }) {
     return { key, score, threshold, ...boneReading(score, threshold) };
   });
   return (
-    <article class="dv-card dv-bone" id="bite-bone">
+    <article class="sect" id="bite-bone">
       <h2>Bone overload</h2>
-      <p class="dv-bite-flag">{BITE_DISCLAIMER}</p>
+      <p class="flag">{BITE_DISCLAIMER}</p>
       <p class="lead">Colored marks show where this scenario’s illustrative load sits relative to a fixed demonstration threshold.</p>
-      <div class="dv-bone-arch" aria-hidden="true">
+      <div class="bone-arch" aria-hidden="true">
         <span class="joint left" style={{ background: BAND_COLOR[severityColor(items[3]!.severity)] }} />
         <span class="joint right" style={{ background: BAND_COLOR[severityColor(items[3]!.severity)] }} />
         <span class="shell" style={{ borderColor: BAND_COLOR[severityColor(items[0]!.severity)] }} />
         <span class="core" style={{ background: BAND_COLOR[severityColor(items[1]!.severity)] }} />
         <span class="ligament" style={{ background: BAND_COLOR[severityColor(items[2]!.severity)] }} />
       </div>
-      <dl class="dv-bite-rows">
+      <dl class="kv">
         {items.map((item) => (
           <div key={item.key}>
             <dt>{BONE_LABELS[item.key]}</dt>
@@ -239,11 +236,11 @@ function ScenarioDetail({ scenario }: { scenario: BiteScenario }) {
     ['Load concentration score', String(scenario.loadConcentration)],
   ];
   return (
-    <div class="dv-grid">
-      <article class="dv-card">
+    <div class="cols">
+      <article class="sect">
         <h2>Scenario result</h2>
-        <p class="dv-bite-flag">{BITE_DISCLAIMER}</p>
-        <dl class="dv-bite-rows">
+        <p class="flag">{BITE_DISCLAIMER}</p>
+        <dl class="kv">
           {rows.map(([label, value]) => (
             <div key={label}>
               <dt>{label}</dt>
@@ -252,10 +249,10 @@ function ScenarioDetail({ scenario }: { scenario: BiteScenario }) {
           ))}
         </dl>
       </article>
-      <article class="dv-card">
+      <article class="sect">
         <h2>Contact pressure distribution</h2>
         <p class="lead">Demonstration zones for this scenario. Not a measured pressure map.</p>
-        <ul class="dv-bite-pressure">
+        <ul class="pressure">
           {scenario.pressure.map((zone) => (
             <li key={zone.zone}>
               <span>{zone.zone}</span>

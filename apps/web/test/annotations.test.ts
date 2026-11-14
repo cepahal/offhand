@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { addCaseNote, annotate, emptyNoteBook, notesFor, setAnnotationSink, TREATMENT_ANCHORS } from '../src/demo/annotations.js';
+import { addCaseNote, annotate, emptyNoteBook, notesFor, setAnnotationSink } from '../src/demo/annotations.js';
 
 describe('dental annotations', () => {
-  it('keeps one treatment anchor per training case', () => {
-    expect(Object.keys(TREATMENT_ANCHORS)).toEqual(['1', '2', '3', '4', '5']);
-    const spots = Object.values(TREATMENT_ANCHORS).map((anchor) => anchor.spot.join(','));
-    expect(new Set(spots).size).toBe(5);
+  it('keeps the slice point and its 3D position with a note', () => {
+    const anchor = { candidateId: 'tf2-f007', plane: 'axial' as const, voxel: [120, 88, 40] as [number, number, number], mm: [12.5, -30, 4] as [number, number, number] };
+    const book = addCaseNote(emptyNoteBook(), 3, 'Check the distal root.', anchor);
+    expect(notesFor(book, 3)[0]).toMatchObject({ text: 'Check the distal root.', anchor });
   });
 
   it('stores notes on the selected case and keeps them when others are opened', () => {

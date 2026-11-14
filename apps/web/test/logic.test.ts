@@ -169,12 +169,11 @@ describe('banners', () => {
   });
 });
 
-describe('neuroview app config', () => {
-  it('scrubs timepoints and carries the dataset credit', () => {
-    const raw: unknown = JSON.parse(readFileSync(new URL('../../../config/apps/neuroview.json', import.meta.url), 'utf8'));
+describe('dental app config', () => {
+  it('clips the dental model along the superior axis', () => {
+    const raw: unknown = JSON.parse(readFileSync(new URL('../../../config/apps/dental.json', import.meta.url), 'utf8'));
     const c = parseAppConfig(raw);
-    expect(c.scrub.target).toBe('timepoint');
-    expect(c.credit).toContain('ISBI 2015');
-    expect(c.credit).toContain('not for clinical or diagnostic use');
+    expect(c.scrub.target).toBe('clip');
+    expect(c.scrub.axis).toBe('S');
   });
 });

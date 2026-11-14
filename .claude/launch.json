@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hub",
+      "runtimeExecutable": "C:\\Program Files\\Git\\bin\\bash.exe",
+      "runtimeArgs": ["-c", "HOVERSCAN_RUN=mock HUB_PORT=8788 GESTURE_PORT=COM10 pnpm --filter @offhand/hub dev"],
+      "port": 8788
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "C:\\Program Files\\Git\\bin\\bash.exe",
+      "runtimeArgs": ["-c", "HUB_PORT=8788 VIEWER_PORT=5174 pnpm --filter @offhand/web dev"],
+      "port": 5174
+    }
+  ]
+}

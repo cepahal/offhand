@@ -3,8 +3,8 @@
  *
  * - Case packs are RAS mm; everything patient-related lives under `patient`, which carries the
  *   fixed RAS -> three.js transform from logic.ts.
- * - Camera moves (rotate/zoom/focus/reset) animate towards a goal pose, so quick repeated
- *   gestures accumulate instead of cancelling each other.
+ * - Camera moves (rotate/zoom/focus/reset) drive a spring rig (camera-rig.ts): velocity carries
+ *   through new commands and repeated commands glide instead of stopping between steps.
  * - Peel: layers are grouped by peelOrder (0 = outermost). Peel out fades the outermost remaining
  *   group; peel in brings back the most recently peeled group. The innermost group stays.
  * - Renders on demand (only when something changed), which matters on a Pi-class board.
@@ -21,6 +21,7 @@ import type {
   ViewSnapshot,
 } from '@hoverscan/contracts';
 import type { AppConfig } from './appConfig.js';
+import { CameraRig, type RigPose } from './camera-rig.js';
 import { PALETTE, SURROUND_OPACITY, layerRole, roleColor } from './palette.js';
 import {
   RAS_TO_THREE,
@@ -37,7 +38,6 @@ import {
   type Vec3,
 } from './logic.js';
 
-const MOVE_MS = 380;
 const FADE_MS = 320;
 const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
@@ -96,8 +96,9 @@ export class Viewer {
   private layers: LayerRt[] = [];
   private peeled: number[] = [];
   private tweens: Tween[] = [];
-  private goalTarget = new THREE.Vector3();
-  private goalSph = new THREE.Spherical(300, Math.PI / 2, 0);
+  private rig = new CameraRig();
+  private raycaster = new THREE.Raycaster();
+  private lastFrame = performance.now();
   private homeTarget = new THREE.Vector3();
   private homeSph = new THREE.Spherical(300, Math.PI / 2, 0);
   private box = new THREE.Box3();
@@ -142,7 +143,7 @@ export class Viewer {
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = false;
-    this.controls.addEventListener('start', () => this.cancel('camera'));
+    this.controls.addEventListener('start', () => this.rig.stop());
     this.controls.addEventListener('change', () => this.changed());
     this.controls.addEventListener('end', () => this.syncGoal());
 
@@ -346,18 +347,19 @@ export class Viewer {
   }
 
   private rotate(yawDeg: number, pitchDeg: number): void {
-    if (!this.tweening('camera')) this.syncGoal();
+    if (!this.rig.active) this.syncGoal();
+    const now = performance.now();
     // yaw > 0 turns the model to the viewer's right = camera orbits the other way.
-    this.goalSph.theta -= THREE.MathUtils.degToRad(yawDeg);
-    this.goalSph.phi = clamp(this.goalSph.phi + THREE.MathUtils.degToRad(pitchDeg), 0.05, Math.PI - 0.05);
-    this.fly();
+    this.rig.nudge('yaw', -THREE.MathUtils.degToRad(yawDeg), now);
+    this.rig.nudge('pitch', THREE.MathUtils.degToRad(pitchDeg), now);
+    this.changed();
   }
 
   private zoom(factor: number): void {
     if (!(factor > 0)) return;
-    if (!this.tweening('camera')) this.syncGoal();
-    this.goalSph.radius = clamp(this.goalSph.radius / factor, this.controls.minDistance, this.controls.maxDistance);
-    this.fly();
+    if (!this.rig.active) this.syncGoal();
+    this.rig.nudge('zoom', -Math.log(factor), performance.now());
+    this.changed();
   }
 
   private peelOut(): void {
@@ -478,11 +480,10 @@ export class Viewer {
       }
     }
     this.view.focusedFindingId = f.id;
-    this.goalTarget.copy(this.patient.localToWorld(new THREE.Vector3(...f.center)));
-    if (!this.tweening('camera')) this.goalSph.setFromVector3(this.camera.position.clone().sub(this.controls.target));
+    const center = this.patient.localToWorld(new THREE.Vector3(...f.center));
+    if (!this.rig.active) this.syncGoal();
     const want = Math.max(f.radiusMm * 9, this.homeSph.radius * 0.35);
-    this.goalSph.radius = clamp(want, this.controls.minDistance, this.controls.maxDistance);
-    this.fly(MOVE_MS * 1.6);
+    this.rig.travelTo({ target: [center.x, center.y, center.z], radius: clamp(want, this.controls.minDistance, this.controls.maxDistance) });
     this.fadeSurrounding();
     this.updateMarkers();
     this.changed();
@@ -503,9 +504,8 @@ export class Viewer {
     this.view.mode = 'orbit';
     this.view.timepoint = 0;
     this.view.scrub = this.loaded?.app.scrub.target === 'clip' ? 1 : 0;
-    this.goalTarget.copy(this.homeTarget);
-    this.goalSph.copy(this.homeSph);
-    this.fly(MOVE_MS * 1.4);
+    if (!this.rig.active) this.syncGoal();
+    this.rig.travelTo(this.poseOf(this.homeTarget, this.homeSph));
     this.updateClip();
     this.updateMarkers();
     this.changed();
@@ -513,9 +513,9 @@ export class Viewer {
 
   /** Restore a saved view (bookmark). */
   restore(s: ViewSnapshot): void {
-    this.goalTarget.fromArray(s.camera.target);
-    this.goalSph.setFromVector3(new THREE.Vector3(...s.camera.position).sub(this.goalTarget));
-    this.fly(MOVE_MS * 1.6);
+    const target = new THREE.Vector3().fromArray(s.camera.target);
+    if (!this.rig.active) this.syncGoal();
+    this.rig.travelTo(this.poseOf(target, new THREE.Spherical().setFromVector3(new THREE.Vector3(...s.camera.position).sub(target))));
     for (const ls of s.layers) {
       const l = this.layers.find((x) => x.def.id === ls.id);
       if (!l) continue;
@@ -563,6 +563,97 @@ export class Viewer {
     };
   }
 
+  /** Screen position (CSS px, relative to the viewport) of a RAS-mm point. */
+  projectRas(ras: Vec3): { x: number; y: number; visible: boolean } {
+    const p = this.patient.localToWorld(new THREE.Vector3(...ras)).project(this.camera);
+    const w = this.host.clientWidth;
+    const h = this.host.clientHeight;
+    return { x: (p.x * 0.5 + 0.5) * w, y: (-p.y * 0.5 + 0.5) * h, visible: p.z < 1 && Math.abs(p.x) < 1.2 && Math.abs(p.y) < 1.2 };
+  }
+
+  /** Bounding box of a layer in RAS mm, or null when the case has no such layer. */
+  layerBoundsRas(id: string): { min: Vec3; max: Vec3 } | null {
+    const l = this.layers.find((x) => x.def.id === id);
+    if (!l) return null;
+    this.patient.updateMatrixWorld(true);
+    const world = new THREE.Box3().setFromObject(l.root);
+    if (world.isEmpty()) return null;
+    const inv = this.patient.matrixWorld.clone().invert();
+    const local = new THREE.Box3();
+    for (const x of [world.min.x, world.max.x])
+      for (const y of [world.min.y, world.max.y])
+        for (const z of [world.min.z, world.max.z]) local.expandByPoint(new THREE.Vector3(x, y, z).applyMatrix4(inv));
+    return { min: [local.min.x, local.min.y, local.min.z], max: [local.max.x, local.max.y, local.max.z] };
+  }
+
+  /**
+   * The segmented structure a RAS-mm point lies in: the smallest layer box that contains it,
+   * else the nearest tooth within 6 mm. Teeth win over bone when both contain the point.
+   */
+  structureAt(ras: Vec3): { id: string; label: string } | null {
+    let best: { id: string; label: string; score: number } | null = null;
+    // Only teeth and the two jaws: boxes of long curved structures (canals, sinuses) are too loose to name a point.
+    for (const l of this.layers) {
+      if (!/^tooth-|jawbone$/.test(l.def.id)) continue;
+      const b = this.layerBoundsRas(l.def.id);
+      if (!b) continue;
+      const inside = [0, 1, 2].every((i) => ras[i]! >= b.min[i]! - 0.5 && ras[i]! <= b.max[i]! + 0.5);
+      const center = [0, 1, 2].map((i) => (b.min[i]! + b.max[i]!) / 2);
+      const dist = Math.hypot(ras[0] - center[0]!, ras[1] - center[1]!, ras[2] - center[2]!);
+      const vol = (b.max[0] - b.min[0]) * (b.max[1] - b.min[1]) * (b.max[2] - b.min[2]);
+      const tooth = l.def.id.startsWith('tooth-');
+      const score = inside ? vol * (tooth ? 0.2 : 1) : tooth && dist < 6 ? 1e9 + dist : Infinity;
+      if (score < (best?.score ?? Infinity)) best = { id: l.def.id, label: l.def.label, score };
+    }
+    return best ? { id: best.id, label: best.label } : null;
+  }
+
+  /** True when visible geometry sits between the camera and this RAS-mm point. */
+  occluded(ras: Vec3): boolean {
+    const target = this.patient.localToWorld(new THREE.Vector3(...ras));
+    const dir = target.clone().sub(this.camera.position);
+    const dist = dir.length();
+    this.raycaster.set(this.camera.position, dir.normalize());
+    this.raycaster.far = dist - 1.5;
+    const meshes: THREE.Object3D[] = [];
+    for (const l of this.layers) if (l.root.visible && l.opacity * l.shown > 0.5) meshes.push(l.root);
+    return this.raycaster.intersectObjects(meshes, true).length > 0;
+  }
+
+  /** Whether a layer is currently drawn (not peeled away or hidden). */
+  layerShown(id: string): boolean {
+    const l = this.layers.find((x) => x.def.id === id);
+    return !!l && l.visible && l.opacity * l.shown > 0.05;
+  }
+
+  /** Change the home direction (degrees around the vertical, and from the top) and go there. */
+  setHomeView(yawDeg: number, polarDeg: number): void {
+    this.homeSph.theta = THREE.MathUtils.degToRad(yawDeg);
+    this.homeSph.phi = THREE.MathUtils.degToRad(polarDeg);
+    this.snapCamera(this.homeTarget, this.homeSph);
+  }
+
+  /** Peel groups, outermost first, with what is in each and whether it is still shown. */
+  peelStatus(): { order: number; labels: string[]; shown: boolean; color: string }[] {
+    return peelGroups(this.layers.map((l) => l.def)).map((order) => {
+      const inGroup = this.layers.filter((l) => l.def.peelOrder === order);
+      // The group's most common colour, so one tinted focus tooth does not recolour "Teeth".
+      const counts = new Map<string, number>();
+      for (const l of inGroup) {
+        if (/sinus|airway|pharynx/i.test(l.def.label)) continue;
+        const c = roleColor(layerRole(l.def.label, l.def.id), l.def.color);
+        counts.set(c, (counts.get(c) ?? 0) + 1);
+      }
+      const color = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '#888888';
+      return {
+        order,
+        labels: inGroup.map((l) => l.def.label),
+        shown: !this.peeled.includes(order),
+        color,
+      };
+    });
+  }
+
   /** PNG of the current view (rendered now, so no preserveDrawingBuffer needed). */
   capture(): string {
     this.renderer.render(this.scene, this.camera);
@@ -576,7 +667,12 @@ export class Viewer {
     if (this.box.isEmpty()) return;
     const size = this.box.getSize(new THREE.Vector3());
     const radius = Math.max(size.length() / 2, 1);
-    const dist = (radius / Math.sin(THREE.MathUtils.degToRad(this.camera.fov / 2))) * 1.02;
+    // Frame the front view to the box, not its bounding sphere, so the anatomy fills the viewport.
+    const tanHalf = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const aspect = Math.max(this.camera.aspect, 0.2);
+    const fitH = size.y / 2 / tanHalf;
+    const fitW = size.x / 2 / (tanHalf * aspect);
+    const dist = Math.max(fitH, fitW) * 1.12 + size.z / 2;
     this.box.getCenter(this.homeTarget);
     this.homeSph.set(dist, THREE.MathUtils.degToRad(78), 0); // in front (+z = anterior), a bit above
     this.camera.near = Math.max(0.1, dist / 200);
@@ -586,42 +682,31 @@ export class Viewer {
     this.controls.maxDistance = dist * 4;
   }
 
+  private poseOf(target: THREE.Vector3, sph: THREE.Spherical): RigPose {
+    return { radius: sph.radius, phi: sph.phi, theta: sph.theta, target: [target.x, target.y, target.z] };
+  }
+
   private snapCamera(target: THREE.Vector3, sph: THREE.Spherical): void {
-    this.controls.target.copy(target);
-    this.camera.position.setFromSpherical(sph).add(target);
-    this.camera.lookAt(target);
-    this.goalTarget.copy(target);
-    this.goalSph.copy(sph);
-    this.changed();
+    this.rig.minRadius = this.controls.minDistance;
+    this.rig.maxRadius = this.controls.maxDistance;
+    this.rig.setPose(this.poseOf(target, sph));
+    this.applyRig();
   }
 
+  /** Make the rig start from wherever the camera is now (after a mouse drag, or before a move). */
   private syncGoal(): void {
-    this.goalTarget.copy(this.controls.target);
-    this.goalSph.setFromVector3(this.camera.position.clone().sub(this.controls.target));
+    this.rig.minRadius = this.controls.minDistance;
+    this.rig.maxRadius = this.controls.maxDistance;
+    this.rig.setPose(this.poseOf(this.controls.target, new THREE.Spherical().setFromVector3(this.camera.position.clone().sub(this.controls.target))));
     this.changed();
   }
 
-  private fly(dur = MOVE_MS): void {
-    const fromT = this.controls.target.clone();
-    const fromS = new THREE.Spherical().setFromVector3(this.camera.position.clone().sub(fromT));
-    const toT = this.goalTarget.clone();
-    const toS = this.goalSph.clone();
-    while (toS.theta - fromS.theta > Math.PI) fromS.theta += 2 * Math.PI;
-    while (toS.theta - fromS.theta < -Math.PI) fromS.theta -= 2 * Math.PI;
-    const s = new THREE.Spherical();
-    const t = new THREE.Vector3();
-    this.animate('camera', dur, (e) => {
-      t.lerpVectors(fromT, toT, e);
-      s.set(
-        fromS.radius * Math.pow(toS.radius / Math.max(fromS.radius, 1e-6), e),
-        lerp(fromS.phi, toS.phi, e),
-        lerp(fromS.theta, toS.theta, e),
-      );
-      this.controls.target.copy(t);
-      this.camera.position.setFromSpherical(s).add(t);
-      this.camera.lookAt(t);
-      this.changed();
-    });
+  private applyRig(): void {
+    const p = this.rig.pose();
+    this.controls.target.set(...p.target);
+    this.camera.position.setFromSpherical(new THREE.Spherical(p.radius, p.phi, p.theta)).add(this.controls.target);
+    this.camera.lookAt(this.controls.target);
+    this.changed();
   }
 
   // ------------------------------------------------------------------------------------------
@@ -738,14 +823,6 @@ export class Viewer {
     this.dirty = true;
   }
 
-  private cancel(key: string): void {
-    this.tweens = this.tweens.filter((t) => t.key !== key);
-  }
-
-  private tweening(key: string): boolean {
-    return this.tweens.some((t) => t.key === key);
-  }
-
   private changed(): void {
     this.dirty = true;
     this.onChange();
@@ -764,6 +841,10 @@ export class Viewer {
 
   private frame = (): void => {
     this.raf = requestAnimationFrame(this.frame);
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
+    this.lastFrame = now;
+    if (this.rig.step(dt)) this.applyRig();
     if (this.tweens.length) {
       const now = performance.now();
       const done: (() => void)[] = [];

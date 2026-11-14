@@ -20,16 +20,24 @@ export const PRESCRIPTION_CLOSE_MS = 3000;
 export const SYNTHETIC_PATIENT: PatientRecord = {
   name: 'Alex Johnson',
   age: 34,
-  initialProblem: 'Tooth Pain',
-  medicalHistory: 'None',
+  initialProblem: 'Pain on chewing, lower left molar (36)',
+  medicalHistory: 'Non-contributory',
   allergies: 'Penicillin',
-  prescription: 'Ibuprofen 400mg',
-  diagnosis: 'Dental Caries',
-  treatment: 'Root Canal',
+  prescription: 'Ibuprofen 400 mg PO q6h PRN pain',
+  diagnosis: 'Symptomatic irreversible pulpitis; symptomatic apical periodontitis, 36',
+  treatment: 'Root canal treatment, 36',
 };
 
 /** The medication a clinician can confirm from the record window. It is not chosen by the model. */
-export const CONFIRMED_PRESCRIPTION = 'Amoxicillin 500mg';
+export const CONFIRMED_PRESCRIPTION = 'Ibuprofen 600 mg PO q6h, 3 days';
+
+const PENICILLIN_CLASS = /penicillin|amoxicillin|amoxycillin|ampicillin|augmentin|co-amoxiclav|dicloxacillin|flucloxacillin|piperacillin|pen vk/i;
+
+/** A recorded allergy the medication belongs to, or null. Shown as a warning; never silent. */
+export function allergyConflict(medication: string, allergies: string): string | null {
+  if (/penicillin/i.test(allergies) && PENICILLIN_CLASS.test(medication)) return 'Penicillin';
+  return null;
+}
 
 type PatientWindowController = {
   open: () => void;
