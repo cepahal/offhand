@@ -113,7 +113,7 @@ export function voiceInputAvailable(): boolean {
   return whisperUrl() !== '' || speechCtor() !== null;
 }
 
-/** Ask for the microphone from a click. A wave alone is not a user gesture, so Chrome will not open the mic until this has succeeded once. */
+/** Ask for the microphone from a click. Hover alone is not a user gesture, so Chrome will not open the mic until this has succeeded once. */
 export async function primeMicrophone(): Promise<string | null> {
   if (!navigator.mediaDevices?.getUserMedia) return 'This browser has no microphone.';
   try {

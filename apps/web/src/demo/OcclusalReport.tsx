@@ -11,11 +11,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RAS_TO_THREE } from '../viewer/logic.js';
 import {
   DEMO_FACTORS,
-  DEMO_NOTES,
-  DEMO_REVIEW,
   EXTRACTION_FACTORS,
-  EXTRACTION_NOTES,
-  EXTRACTION_REVIEW,
   LOWER_ORDER,
   UPPER_ORDER,
   caseBalance,
@@ -145,9 +141,11 @@ function ArchChart({ arch, focus }: { arch: 'upper' | 'lower'; focus: ReportFocu
   const inner = shifted(42).reverse();
   const archPath = `M${outer.map((point) => point.join(',')).join(' L')} L${inner.map((point) => point.join(',')).join(' L')} Z`;
   const rightWidth = (balance.right / 100) * 352;
+  // Wide viewBox matches the sheet cell aspect so arch and column panels share the same box.
   return (
-    <svg viewBox="0 0 400 340" role="img" aria-label={`${arch} force distribution`}>
-      <rect width="400" height="340" fill="#e6e6e6" />
+    <svg viewBox="0 0 780 340" preserveAspectRatio="none" role="img" aria-label={`${arch} force distribution`}>
+      <rect width="780" height="340" fill="#e6e6e6" />
+      <g transform="translate(190,0)">
       <path d={archPath} fill="#f7f7f7" stroke="#6f9464" strokeWidth="1.3" />
       {points.map((point) => (
         <line key={`ray-${point.fdi}`} x1="200" y1={focusY} x2={point.x} y2={point.y} stroke="#d5d5d5" strokeWidth="0.7" />
@@ -189,6 +187,7 @@ function ArchChart({ arch, focus }: { arch: 'upper' | 'lower'; focus: ReportFocu
       <rect x={24 + rightWidth} y="314" width={(balance.left / 100) * 352} height="16" fill="#2f9d57" />
       <text x="32" y="326" fill="#fff" fontSize="10" fontFamily="sans-serif">Right</text>
       <text x="350" y="326" textAnchor="end" fill="#fff" fontSize="10" fontFamily="sans-serif">Left</text>
+      </g>
     </svg>
   );
 }
@@ -370,9 +369,21 @@ export function OcclusalReport({ candidateId, focus = '36' }: { candidateId: str
       const box = new THREE.Box3().setFromObject(scene);
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3());
-      const radius = Math.max(size.x, size.y, size.z);
-      camera.position.set(center.x + radius * 0.15, center.y + radius * 0.28, center.z + radius * 0.95);
+      const radius = Math.max(size.x, size.y, size.z, 1) * 0.5;
+      // Fit the open-arch bounding box to the viewport with a small margin.
+      fit();
+      const vFov = THREE.MathUtils.degToRad(camera.fov);
+      const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+      const distV = (size.y * 0.5) / Math.tan(vFov / 2);
+      const distH = (Math.max(size.x, size.z) * 0.5) / Math.tan(hFov / 2);
+      const distance = Math.max(distV, distH, radius) * 1.5;
+      camera.position.set(center.x + distance * 0.02, center.y + distance * 0.08, center.z + distance);
+      camera.near = Math.max(0.1, distance / 200);
+      camera.far = distance * 20;
+      camera.updateProjectionMatrix();
       controls.target.copy(center);
+      controls.minDistance = radius * 0.6;
+      controls.maxDistance = distance * 3;
       controls.update();
       setMapStatus('');
     })().catch((error: unknown) => {
@@ -456,15 +467,17 @@ export function OcclusalReport({ candidateId, focus = '36' }: { candidateId: str
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       renderer.setClearColor(0xd5d5d5, 1);
       host.appendChild(renderer.domElement);
-      const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 800);
-      camera.position.set(34, 40, 66);
+      const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 800);
+      camera.position.set(28, 36, 58);
       const controls = new OrbitControls(camera, renderer.domElement);
-      controls.target.set(0, 6, 18);
+      controls.target.set(0, 8, 16);
       controls.enablePan = false;
       controls.update();
       const fit = () => {
-        renderer.setSize(Math.max(host.clientWidth, 40), Math.max(host.clientHeight, 40), false);
-        camera.aspect = Math.max(host.clientWidth, 40) / Math.max(host.clientHeight, 40);
+        const w = Math.max(host.clientWidth, 40);
+        const h = Math.max(host.clientHeight, 40);
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
         camera.updateProjectionMatrix();
       };
       return { renderer, camera, controls, fit };
@@ -514,8 +527,6 @@ export function OcclusalReport({ candidateId, focus = '36' }: { candidateId: str
   const height = 150;
   const peakTooth = focus === '48' ? '48' : '36';
   const factors = focus === '48' ? EXTRACTION_FACTORS : DEMO_FACTORS;
-  const notes = focus === '48' ? EXTRACTION_NOTES : DEMO_NOTES;
-  const review = focus === '48' ? EXTRACTION_REVIEW : DEMO_REVIEW;
   const balance = caseBalance(focus);
   const line = (key: 'total' | 'tooth36') => samples.map((sample, index) => {
     const x = (sample.second / 10.5) * width;
@@ -549,7 +560,7 @@ export function OcclusalReport({ candidateId, focus = '36' }: { candidateId: str
           <ArchChart arch="lower" focus={focus} />
           <div class="oc-colview" data-orbit ref={lowerRef} />
         </div>
-        <p class="oc-note">Upper shares match the opposing lower tooth. Tooth {focus === '48' ? '18' : '26'} carries the same {caseForce(peakTooth, focus)}% as tooth {peakTooth}. Left is {balance.left}% and right is {balance.right}% on both arches.</p>
+        <p class="oc-note">Tooth {peakTooth} · {caseForce(peakTooth, focus)}% of total · Left {balance.left}% · Right {balance.right}%. Illustrative shares, not a T-Scan recording.</p>
         <div class="oc-panel oc-time">
           <h3>Force versus time</h3>
           <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Illustrative force over 10.5 seconds">
@@ -561,39 +572,23 @@ export function OcclusalReport({ candidateId, focus = '36' }: { candidateId: str
             <text x="8" y="14" fill="#e2c14a" fontSize="10">Total</text>
             <text x="52" y="14" fill="#d24b4b" fontSize="10">Tooth {peakTooth} · {caseForce(peakTooth, focus)}% of total</text>
           </svg>
-          <p>Rest, first contact near 3–4 s, peak at 9.2 s, release by 10.3 s, then rest. Tooth {peakTooth} follows the same curve at its arch share.</p>
+          <p>Rest → first contact ~3–4 s → peak at 9.2 s → release by 10.3 s. Tooth {peakTooth} follows at its arch share.</p>
         </div>
       </section>
       <section class="oc-block" aria-label="Biomechanical factors">
         <header>
-          <p class="dv-overline">DEMONSTRATION MARKS, NOT CLINICAL REFERENCE RANGES</p>
-          <h2>{focus === '48' ? 'Bite biomechanics · tooth 48' : 'Crown biomechanics · tooth 36'}</h2>
+          <p class="dv-overline">ILLUSTRATIVE FIGURES, NOT CLINICAL REFERENCE RANGES</p>
+          <h2>{focus === '48' ? 'Bite summary · tooth 48' : 'Bite summary · tooth 36'}</h2>
         </header>
-        <ol class="oc-factors">
+        <ol class="oc-factors oc-factors-plain">
           {factors.map((item) => (
             <li key={item.name}>
-              <div><b>{item.name}</b><span class={`oc-status is-${item.status.toLowerCase()}`}>{item.status}</span></div>
+              <div><b>{item.name}</b></div>
               <strong>{item.value}</strong>
-              <i style={{ width: `${item.bar}%` }} />
               <small>{item.explanation}</small>
             </li>
           ))}
         </ol>
-      </section>
-      <section class="oc-block" aria-label="Analysis and suggested review">
-        <header>
-          <p class="dv-overline">TRACEABLE TO THE FIGURES ABOVE</p>
-          <h2>Analysis and suggested review</h2>
-        </header>
-        <div class="oc-notes">
-          {notes.map((note) => (
-            <article key={note.title}><h3>{note.title}</h3><p>{note.detail}</p></article>
-          ))}
-        </div>
-        <ul class="oc-review">
-          {review.map((item) => <li key={item}>{item}</li>)}
-        </ul>
-        <p class="oc-note">{focus === '48' ? 'These notes do not prescribe an extraction and do not decide a clinical design.' : 'These notes do not prescribe a crown adjustment and do not decide a clinical design.'}</p>
       </section>
     </div>
   );

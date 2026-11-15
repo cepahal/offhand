@@ -3,7 +3,6 @@ import { biteScenario } from '../src/demo/bite-scenarios.js';
 import {
   ARCH_FORCE,
   DEMO_FACTORS,
-  DEMO_REVIEW,
   caseForce,
   centerOfForce,
   crownContactT,
@@ -42,14 +41,20 @@ describe('tooth 36 occlusal dataset', () => {
     expect(peak.second).toBeGreaterThan(8);
   });
 
-  it('lists the eleven factors and ties the review notes to those figures', () => {
-    expect(DEMO_FACTORS).toHaveLength(11);
-    expect(DEMO_FACTORS.map((item) => item.status).every((status) => ['Normal', 'Moderate', 'High'].includes(status))).toBe(true);
+  it('lists the bite summary factors and ties the review notes to those figures', () => {
+    expect(DEMO_FACTORS.map((item) => item.name)).toEqual([
+      'Applied bite force',
+      'Peak contact pressure',
+      'Contact area',
+      'Left-right balance',
+      'Cortical bone loading',
+      'Trabecular bone loading',
+      'Periodontal ligament loading',
+      'TMJ loading',
+    ]);
     expect(DEMO_FACTORS.find((item) => item.name === 'Peak contact pressure')?.value).toBe('18.4 MPa');
     expect(DEMO_FACTORS.find((item) => item.name === 'Left-right balance')?.value).toContain('71% left');
-    expect(DEMO_REVIEW.join(' ')).toContain('18.4');
-    expect(DEMO_REVIEW.join(' ')).toContain('71%');
-    expect(DEMO_REVIEW.join(' ')).toContain('1.6 mm');
+    expect(DEMO_FACTORS.find((item) => item.name === 'Contact area')?.value).toContain('mm');
     const high = crownContactT(0, 10, 0, 0, 10);
     const low = crownContactT(0, 0, 0, 0, 10);
     expect(high).toBeGreaterThan(low);

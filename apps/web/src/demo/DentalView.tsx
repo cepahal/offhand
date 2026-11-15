@@ -13,6 +13,9 @@ import { CBCTWorkspace, DENTAL_CANDIDATE_GROUPS, DENTAL_CANDIDATES, focusName, o
 import { universalFromFdi } from './bite-scenarios.js';
 import { resolveTooth } from './bite-analysis.js';
 import { BiteSimulation } from './BiteSimulation.js';
+import { CrownFit } from './CrownFit.js';
+import { ExtractionPlan } from './ExtractionPlan.js';
+import { OcclusalReport } from './OcclusalReport.js';
 import { useHackAssistant } from './hack-session.js';
 import type { HackPhase } from './hack-commands.js';
 import { PatientDatabase } from './PatientDatabase.js';
@@ -195,17 +198,27 @@ export function DentalView() {
   const selectCandidate = (id: string) => {
     const selection = DENTAL_CANDIDATES.find((item) => item.id === id);
     if (!selection) return;
-    setTraining(selection.training - 1);
+    const index = DENTAL_TRAININGS.findIndex((item) => item.n === selection.training);
+    if (index >= 0) setTraining(index);
     setCandidateSelection((current) => ({ ...current, [selection.training]: selection.id }));
     setPage('view');
   };
   useEffect(() => setScanPoint(null), [active.n, candidate.id]);
 
   const caseName = `Case ${candidate.id.replace('tf2-', '').toUpperCase()}`;
-  const title = page === 'view' ? `${active.title}${active.focusLayer ? ` (#${universalFromFdi(active.fdi)})` : ''}` : page === 'bite' ? 'Pressure analysis' : PAGE_TITLE[page];
+  const pressurePlan = page === 'bite' && (active.n === 3 || active.n === 5);
+  const title = page === 'view'
+    ? `${active.title}${active.focusLayer ? ` (#${universalFromFdi(active.fdi)})` : ''}`
+    : page === 'bite' && active.n === 3
+      ? 'Crown fit analysis · tooth 36'
+      : page === 'bite' && active.n === 5
+        ? 'Extraction planning · tooth 48'
+        : page === 'bite'
+          ? 'Pressure analysis'
+          : PAGE_TITLE[page];
 
   return (
-    <div class={`app ${inspector ? 'with-inspector' : ''}`}>
+    <div class={`app ${inspector && !pressurePlan ? 'with-inspector' : ''}`}>
       <header class="toolbar">
         <div class="tb-lead">
           <img class="logo" src="/brand/offhand-logo-light.png" alt="offhand" width="79" height="30" />
@@ -289,6 +302,16 @@ export function DentalView() {
               onSource={setSource}
               bind={(next) => { viewer.current = next; }}
             />
+          ) : page === 'bite' && active.n === 3 ? (
+            <div class="cf-scroll">
+              <CrownFit candidateId={candidate.id} bind={(next) => { viewer.current = next; }} scanNotes={caseNotes} />
+              <OcclusalReport candidateId={candidate.id} />
+            </div>
+          ) : page === 'bite' && active.n === 5 ? (
+            <div class="cf-scroll">
+              <ExtractionPlan candidateId={candidate.id} bind={(next) => { viewer.current = next; }} scanNotes={caseNotes} />
+              <OcclusalReport candidateId={candidate.id} focus="48" />
+            </div>
           ) : page === 'bite' ? (
             <BiteSimulation trainingTitle={active.title} patientName="Deidentified subject" request={biteRequest} onNote={hack.note} />
           ) : (
@@ -306,7 +329,7 @@ export function DentalView() {
           )}
         </main>
 
-        {inspector && (
+        {inspector && !pressurePlan && (
           <aside class="inspector" aria-label="Inspector">
             <section class="insp">
               <h2 class="insp-head">Review focus</h2>

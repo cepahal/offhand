@@ -13,7 +13,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import type { ViewerCommand } from '@hoverscan/contracts';
 import { RAS_TO_THREE } from '../viewer/logic.js';
-import type { StageControl } from './DentalStage.js';
+import type { StageControl } from './CBCTWorkspace.js';
 import {
   EXTRACTION_STAGES,
   closestApproach,
@@ -328,6 +328,7 @@ export function ExtractionPlan({
         setPlaying(false);
       },
       reset: resetCamera,
+      goTo() {},
     });
 
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);

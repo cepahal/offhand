@@ -12,7 +12,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import type { ViewerCommand } from '@hoverscan/contracts';
 import { RAS_TO_THREE } from '../viewer/logic.js';
-import type { StageControl } from './DentalStage.js';
+import type { StageControl } from './CBCTWorkspace.js';
 import {
   CROWN_FIT_FIGURES,
   CROWN_STAGES,
@@ -288,6 +288,7 @@ export function CrownFit({
         setPlaying(false);
       },
       reset: resetCamera,
+      goTo() {},
     };
     bind(control);
 
