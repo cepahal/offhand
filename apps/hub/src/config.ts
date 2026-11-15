@@ -58,10 +58,13 @@ export interface HubConfig {
 }
 
 export function loadConfig(): HubConfig {
+  // HUB_PORT wins; PORT is the Railway/Heroku convention so Target port matches the process.
+  const port = int('HUB_PORT', int('PORT', 8787));
+  // Localhost only unless overridden. When PORT is set by the host, bind publicly.
+  const bindDefault = process.env.PORT?.trim() ? '0.0.0.0' : '127.0.0.1';
   return {
-    port: int('HUB_PORT', 8787),
-    // Localhost only unless explicitly overridden.
-    bind: str('HUB_BIND', '127.0.0.1'),
+    port,
+    bind: str('HUB_BIND', bindDefault),
     casepackDir: fromRoot(str('CASEPACK_DIR', 'casepacks')),
     logDir: fromRoot(str('LOG_DIR', 'logs')),
     snapshotDir: fromRoot(str('SNAPSHOT_DIR', 'snapshots')),

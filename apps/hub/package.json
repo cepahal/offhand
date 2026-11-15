@@ -8,8 +8,8 @@
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/server.ts",
     "start": "node dist/server.js",
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "pnpm --filter @hoverscan/contracts build && tsc -p tsconfig.build.json",
+    "typecheck": "pnpm --filter @hoverscan/contracts build && tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "replay": "tsx scripts/replay.ts",
     "gesture:monitor": "tsx scripts/gesture-monitor.ts",

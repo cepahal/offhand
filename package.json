@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter @hoverscan/contracts build && HOVERSCAN_RUN=mock concurrently -k -n hub,web -c blue,magenta \"pnpm --filter @offhand/hub dev\" \"pnpm --filter @offhand/web dev\"",
-    "build": "pnpm -r build",
+    "build": "pnpm --filter @hoverscan/contracts build && pnpm --filter @offhand/web build && pnpm --filter @offhand/hub build",
     "start": "pnpm --filter @offhand/hub start",
     "check": "pnpm --filter @hoverscan/contracts build && pnpm typecheck && pnpm lint && pnpm test && pnpm --filter @hoverscan/contracts schema:check && pnpm --filter @offhand/hub test:failclosed",
     "test": "pnpm -r test",

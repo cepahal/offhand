@@ -1,0 +1,8 @@
+# Offhand hub + built viewer. Contracts must compile before web/hub (see package build scripts).
+[build]
+builder = "NIXPACKS"
+buildCommand = "pnpm install --frozen-lockfile && pnpm build"
+
+[deploy]
+startCommand = "pnpm start"
+restartPolicyType = "ON_FAILURE"
