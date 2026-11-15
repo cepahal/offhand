@@ -1,6 +1,6 @@
 # offhand
 
-Touchless viewer for 3D medical scans. A hand over a PAJ7620 gesture sensor turns, zooms and
+Offhand is a touchless viewer for 3D medical scans, built to help real dentists. A hand over a PAJ7620 gesture sensor turns, zooms and
 peels a 3D model built from public imaging datasets. HackPrinceton Fall 2026.
 
 ```
@@ -38,8 +38,7 @@ same gesture path:
 | ↑ ↓ | swipe up / down | tilt 20° |
 | + − | push / pull | zoom in / out |
 | [ ] | spin cw / ccw | peel a layer out / back in |
-| W | wave | listen on/off |
-| hold H + move mouse up/down | hover | after 1 s still: scrub mode, hand height = scrub |
+| hold H | wave | listen on/off |
 
 Other keys: R reset, N/P next/previous finding, B bookmark, C capture PNG, M orbit/scrub,
 `,` `.` scrub, 1–9 toggle layer, O open case, S slice panel, ? help.
